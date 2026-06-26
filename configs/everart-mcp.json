@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "everart": {
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-everart"]
+    }
+  }
+}

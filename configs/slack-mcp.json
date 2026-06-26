@@ -1,0 +1,12 @@
+{
+  "mcpServers": {
+    "slack": {
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-slack"],
+      "env": {
+        "SLACK_BOT_TOKEN": "<your-slack-bot-token>",
+        "SLACK_TEAM_ID": "<your-slack-team-id>"
+      }
+    }
+  }
+}
