@@ -2,8 +2,8 @@
 #
 # uninstall.sh - Remove MCP server entries from Claude Code settings
 #
-# Removes the GitHub, Fetch, and Filesystem MCP server configurations
-# that were added by setup.sh. Safe to run multiple times.
+# Removes all MCP server configurations that were added by setup.sh.
+# Safe to run multiple times.
 
 set -euo pipefail
 
@@ -19,7 +19,7 @@ info()  { echo -e "${GREEN}[INFO]${NC} $1"; }
 warn()  { echo -e "${YELLOW}[WARN]${NC} $1"; }
 error() { echo -e "${RED}[ERROR]${NC} $1"; exit 1; }
 
-SERVERS_TO_REMOVE=("github" "fetch" "filesystem")
+SERVERS_TO_REMOVE=("github" "fetch" "filesystem" "brave-search" "memory")
 
 # -------------------------------------------------------------------
 # Preflight
