@@ -1,6 +1,8 @@
 # MCP Server Kit for Claude Code
 
-**Claude Code is powerful out of the box. But without MCP servers, it is boxed in.**
+Part of the [AI BU](https://github.com/MarkellR-RedHat/ai-bu-hub) tool suite.
+
+## Claude Code is powerful out of the box. But without MCP servers, it is boxed in.
 
 It cannot search the web. It cannot query your database. It cannot read a URL you paste into the conversation. It cannot remember what you told it yesterday.
 
@@ -39,7 +41,7 @@ That is the whole thing. The setup script checks your prerequisites, walks you t
 ./setup.sh --minimal
 ```
 
-### Full enterprise setup
+### Full team setup
 
 For teams that want every server configured with real credentials from the start:
 
@@ -154,9 +156,21 @@ Remember that my preferred programming language is Python and I work on RHEL
 
 If Claude responds with real data instead of "I don't have access to that," your MCP servers are working.
 
-**Cross-tool smoke tests:**
-- Run `/briefing` in Claude Code to test the GitHub MCP server end to end
-- Run `/upstream vllm` in Claude Code to test fetch + GitHub servers together
+## Works With Other AI BU Tools
+
+MCP servers are the infrastructure layer. Other tools in the suite depend on them.
+
+| When you want to... | Use this tool | Which MCP servers it needs |
+|---|---|---|
+| Get a morning briefing on your repos | [`/briefing`](https://github.com/MarkellR-RedHat/ai-bu-daily-briefing) | GitHub |
+| Track upstream project changes | [`/upstream`](https://github.com/MarkellR-RedHat/ai-bu-upstream-tracker) | GitHub, Fetch |
+| Monitor competitor moves | [`/competitive-watch`](https://github.com/MarkellR-RedHat/ai-bu-competitive-watch) | Brave Search, Fetch |
+| Generate a status report from commits | [`/status-report`](https://github.com/MarkellR-RedHat/ai-bu-status-report) | GitHub |
+| Speed-read a long doc or spec | [`/speed-read`](https://github.com/MarkellR-RedHat/ai-bu-speed-reader) | Fetch |
+
+Run `./setup.sh --minimal` and you cover the requirements for most of these tools. Add Brave Search if you want `/competitive-watch`.
+
+> **Tip from actual use:** After running `./setup.sh`, the single biggest productivity gain is not the individual servers. It is that Claude Code can now chain them. Ask it to "find the open issues labeled `priority/critical` in my repo, fetch the linked docs, and draft a status update." That used to be four browser tabs and 20 minutes of copy-paste. With MCP servers, it is one prompt.
 
 ## Setup Options
 
