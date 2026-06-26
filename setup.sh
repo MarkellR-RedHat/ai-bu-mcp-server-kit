@@ -111,11 +111,14 @@ for arg in "$@"; do
             echo ""
             echo -e "${BOLD}MCP Server Kit for Claude Code${NC}"
             echo ""
+            echo "Give Claude Code access to GitHub, the web, your filesystem,"
+            echo "databases, and more."
+            echo ""
             echo "Usage: ./setup.sh [OPTIONS]"
             echo ""
             echo "Options:"
-            echo "  (none)       Interactive mode with workflow-based selection"
-            echo "  --all        Install every available MCP server"
+            echo "  (none)       Interactive setup with workflow bundles"
+            echo "  --all        Install all 13 available servers"
             echo "  --minimal    Install essentials only (GitHub, Fetch, Filesystem)"
             echo "  --list       Show available servers and exit"
             echo "  --restore    Restore the most recent settings backup"
@@ -123,9 +126,10 @@ for arg in "$@"; do
             echo "  --help, -h   Show this help"
             echo ""
             echo "Examples:"
-            echo "  ./setup.sh               # Walk through interactive setup"
-            echo "  ./setup.sh --minimal -y  # Quick install of core servers, no prompts"
-            echo "  ./setup.sh --restore     # Undo the last setup by restoring backup"
+            echo "  ./setup.sh               # Interactive setup"
+            echo "  ./setup.sh --minimal -y  # Core servers, no prompts"
+            echo "  ./setup.sh --all         # Everything, with prompts"
+            echo "  ./setup.sh --restore     # Undo the last setup"
             echo ""
             exit 0
             ;;
@@ -1118,11 +1122,7 @@ show_health_dashboard() {
 
     echo ""
     echo ""
-    echo -e "  ${BOLD}${GREEN}┌──────────────────────────────────────────────────────────┐${NC}"
-    echo -e "  ${BOLD}${GREEN}│                                                          │${NC}"
-    echo -e "  ${BOLD}${GREEN}│     Done. ${#installed[@]} server(s) configured in settings.json.      │${NC}"
-    echo -e "  ${BOLD}${GREEN}│                                                          │${NC}"
-    echo -e "  ${BOLD}${GREEN}└──────────────────────────────────────────────────────────┘${NC}"
+    echo -e "  ${BOLD}${GREEN}Setup complete.${NC} ${#installed[@]} server(s) configured in settings.json."
 
     # Health check table
     echo ""
@@ -1211,12 +1211,11 @@ show_health_dashboard() {
     fi
 
     # Hint for connection issues after setup
-    echo -e "  ${DIM}If a server installs but fails to connect, run ./verify.sh for diagnostics${NC}"
-    echo -e "  ${DIM}or see troubleshooting.md for common fixes.${NC}"
+    echo -e "  ${DIM}If a server fails to connect, run ./verify.sh or see troubleshooting.md.${NC}"
     echo ""
 
     # What to try first
-    echo -e "  ${BOLD}Try these in Claude Code${NC}"
+    echo -e "  ${BOLD}Try it out (restart Claude Code first)${NC}"
     divider
     echo ""
 
@@ -1258,7 +1257,7 @@ show_health_dashboard() {
 
     # Cross-tool integration hints
     if [[ " ${installed[*]} " == *" github "* ]] || [[ " ${installed[*]} " == *" fetch "* ]]; then
-        echo -e "  ${BOLD}Test with other Claude Code tools${NC}"
+        echo -e "  ${BOLD}Cross-tool smoke tests${NC}"
         divider
         echo ""
         if [[ " ${installed[*]} " == *" github "* ]]; then
@@ -1294,16 +1293,11 @@ main() {
     # Banner
     echo ""
     echo ""
-    echo -e "  ${BOLD}${CYAN}┌──────────────────────────────────────────────────────────┐${NC}"
-    echo -e "  ${BOLD}${CYAN}│                                                          │${NC}"
-    echo -e "  ${BOLD}${CYAN}│           MCP Server Kit for Claude Code                 │${NC}"
-    echo -e "  ${BOLD}${CYAN}│                                                          │${NC}"
-    echo -e "  ${BOLD}${CYAN}│     Configure MCP servers for Claude Code.                │${NC}"
-    echo -e "  ${BOLD}${CYAN}│                                                          │${NC}"
-    echo -e "  ${BOLD}${CYAN}└──────────────────────────────────────────────────────────┘${NC}"
+    echo -e "  ${BOLD}${CYAN}MCP Server Kit for Claude Code${NC}"
+    divider
     echo ""
-    echo -e "  This adds GitHub, web fetch, filesystem, database, and search"
-    echo -e "  capabilities to Claude Code via MCP servers."
+    echo -e "  Give Claude Code access to GitHub, the web, your filesystem,"
+    echo -e "  databases, and more. Setup takes about 3 minutes."
     echo ""
 
     # Calculate total steps based on mode

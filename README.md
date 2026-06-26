@@ -1,17 +1,22 @@
 # MCP Server Kit for Claude Code
 
-MCP servers extend Claude Code with GitHub search, web fetch, local file access, and database queries. Setup takes 3 minutes.
+**Claude Code is powerful out of the box. But without MCP servers, it is boxed in.**
 
-## What Changes
+It cannot search the web. It cannot query your database. It cannot read a URL you paste into the conversation. It cannot remember what you told it yesterday.
+
+MCP servers fix that. This kit installs and configures them in under 3 minutes.
+
+## Before and After
 
 | Without MCP servers | With MCP servers |
 |---|---|
-| Edit local files and run terminal commands | Everything on the left, plus... |
-| Ask questions from Claude's training data | Search the live web and pull current documentation |
-| Manually paste in file contents or URLs | Fetch any URL, API response, or web page directly |
-| Copy-paste GitHub issues into your prompt | Query repos, PRs, issues, and commit history in conversation |
-| No database access | Query PostgreSQL and SQLite databases directly |
-| Context resets every session | Persistent memory across sessions |
+| Manually paste file contents into your prompt | Claude reads and writes files in your project directories |
+| No web access at all | Fetch any URL, API response, or documentation page directly |
+| Copy-paste GitHub issues into the conversation | Query repos, PRs, issues, and commit history live |
+| Cannot search the internet | Search the web via Brave Search and pull current results |
+| No database access | Query PostgreSQL and SQLite databases in conversation |
+| Context resets every session | Persistent memory that carries across sessions |
+| "I don't have access to that" | "Here's what I found" |
 
 ## Quick Start
 
@@ -22,17 +27,15 @@ chmod +x setup.sh verify.sh uninstall.sh
 ./setup.sh
 ```
 
-The setup script checks prerequisites, lets you pick servers, and verifies each package resolves.
+That is the whole thing. The setup script checks your prerequisites, walks you through server selection, and verifies each package resolves.
 
-Skip the interactive prompts:
+**Want to skip the prompts?**
 
 ```bash
+# Install everything, no questions asked
 ./setup.sh --all
-```
 
-Or install just the essentials:
-
-```bash
+# Install only the essentials (GitHub, Fetch, Filesystem)
 ./setup.sh --minimal
 ```
 
@@ -74,139 +77,86 @@ After setup, customize paths and connection strings in `~/.claude/settings.json`
 
 See [advanced-patterns.md](advanced-patterns.md) for project-level configs, multi-database setups, and team-shared configurations.
 
-## Try It Out
-
-After setup, restart Claude Code and try these prompts:
-
-**GitHub:**
-```
-List the open issues in MarkellR-RedHat/ai-bu-mcp-server-kit
-```
-
-**Fetch:**
-```
-Fetch https://httpbin.org/get and show me the response headers
-```
-
-**Filesystem:**
-```
-List the files in my projects directory and summarize what each project does
-```
-
-**Memory:**
-```
-Remember that my preferred programming language is Python and I work on RHEL
-```
-
-**Brave Search:**
-```
-Search the web for "latest Claude Code features" and summarize what you find
-```
-
-**Sequential Thinking:**
-```
-Use sequential thinking to design a migration strategy for moving from monolith to microservices
-```
-
-**Context7:**
-```
-Use context7 to get the latest docs for FastAPI and show me how to add middleware
-```
-
-**PostgreSQL:**
-```
-Connect to my database and show me the schema for the users table
-```
-
-If Claude Code responds with actual data instead of an error, your MCP servers are working.
-
-**Cross-tool checks:**
-- Run `/briefing` in Claude Code to test the GitHub MCP server end to end
-- Run `/upstream vllm` in Claude Code to test fetch + GitHub servers together
-
-## What is MCP?
-
-[MCP (Model Context Protocol)](https://modelcontextprotocol.io/) is an open standard for connecting AI tools to external data sources. Each MCP server gives Claude Code a specific capability: GitHub access, web search, database queries, persistent memory, etc.
-
 ## Available Servers
 
-### Start with these three
+### The essentials (installed with `--minimal`)
 
-The `--minimal` flag installs exactly these three.
-
-| Server | Package | What It Does |
+| Server | Package | What it does |
 |--------|---------|-------------|
 | **GitHub** | `@modelcontextprotocol/server-github` | Query repos, issues, PRs, file contents, and commit history |
 | **Fetch** | `@anthropic-ai/mcp-fetch` | Read the contents of any URL: docs, APIs, web pages, raw data |
 | **Filesystem** | `@modelcontextprotocol/server-filesystem` | Controlled read/write/search access to local directories |
 
-### Add more when you need them
+### Search and research
 
-<details>
-<summary><strong>Search and Research</strong></summary>
-
-| Server | Package | What It Does |
+| Server | Package | What it does |
 |--------|---------|-------------|
 | **Brave Search** | `@anthropic-ai/mcp-server-brave-search` | Web search via Brave Search API (requires API key) |
 | **Context7** | `@upstash/context7-mcp` | Up-to-date library documentation pulled from source |
 
-</details>
+### Memory and reasoning
 
-<details>
-<summary><strong>Memory and Reasoning</strong></summary>
-
-| Server | Package | What It Does |
+| Server | Package | What it does |
 |--------|---------|-------------|
 | **Memory** | `@modelcontextprotocol/server-memory` | Persistent key-value storage across Claude Code sessions |
 | **Sequential Thinking** | `@modelcontextprotocol/server-sequential-thinking` | Structured step-by-step reasoning for complex problems |
 
-</details>
+### Database
 
-<details>
-<summary><strong>Database</strong></summary>
-
-| Server | Package | What It Does |
+| Server | Package | What it does |
 |--------|---------|-------------|
 | **PostgreSQL** | `@modelcontextprotocol/server-postgres` | Query and inspect PostgreSQL databases |
 | **SQLite** | `@modelcontextprotocol/server-sqlite` | Query and inspect SQLite database files |
 
-</details>
+### Browser and automation
 
-<details>
-<summary><strong>Browser and Automation</strong></summary>
-
-| Server | Package | What It Does |
+| Server | Package | What it does |
 |--------|---------|-------------|
 | **Puppeteer** | `@modelcontextprotocol/server-puppeteer` | Browser automation: screenshots, clicks, form fills, navigation |
 
-</details>
+### Communication
 
-<details>
-<summary><strong>Communication</strong></summary>
-
-| Server | Package | What It Does |
+| Server | Package | What it does |
 |--------|---------|-------------|
 | **Slack** | `@modelcontextprotocol/server-slack` | Read and post messages in Slack channels (requires bot token) |
 
-</details>
+### Location
 
-<details>
-<summary><strong>Location</strong></summary>
-
-| Server | Package | What It Does |
+| Server | Package | What it does |
 |--------|---------|-------------|
 | **Google Maps** | `@modelcontextprotocol/server-google-maps` | Geocoding, directions, and place search (requires API key) |
 
-</details>
+### Creative
 
-<details>
-<summary><strong>Creative</strong></summary>
-
-| Server | Package | What It Does |
+| Server | Package | What it does |
 |--------|---------|-------------|
 | **EverArt** | `@modelcontextprotocol/server-everart` | AI image generation and model training (requires API key) |
 
-</details>
+## Try It
+
+After setup, restart Claude Code and try these:
+
+```
+List the open issues in MarkellR-RedHat/ai-bu-mcp-server-kit
+```
+
+```
+Fetch https://httpbin.org/get and show me the response headers
+```
+
+```
+Search the web for "latest Claude Code features" and summarize what you find
+```
+
+```
+Remember that my preferred programming language is Python and I work on RHEL
+```
+
+If Claude responds with real data instead of "I don't have access to that," your MCP servers are working.
+
+**Cross-tool smoke tests:**
+- Run `/briefing` in Claude Code to test the GitHub MCP server end to end
+- Run `/upstream vllm` in Claude Code to test fetch + GitHub servers together
 
 ## Setup Options
 
@@ -218,12 +168,14 @@ The `--minimal` flag installs exactly these three.
 
 Choose from pre-built bundles based on your workflow:
 
-- **Quick Start** - GitHub, Fetch, Filesystem, Memory
-- **Full Stack Developer** - Core + Brave Search, Context7, Sequential Thinking, Puppeteer
-- **Data and Backend** - Core + Postgres, SQLite, Sequential Thinking
-- **AI/ML Engineer** - Core + Brave Search, Context7, Sequential Thinking, EverArt
-- **Everything** - All available servers
-- **Custom** - Pick exactly which servers you want
+| Bundle | Servers included |
+|--------|-----------------|
+| **Quick Start** | GitHub, Fetch, Filesystem, Memory |
+| **Full Stack Developer** | Core + Brave Search, Context7, Sequential Thinking, Puppeteer |
+| **Data and Backend** | Core + Postgres, SQLite, Sequential Thinking |
+| **AI/ML Engineer** | Core + Brave Search, Context7, Sequential Thinking, EverArt |
+| **Everything** | All 13 available servers |
+| **Custom** | Pick exactly which servers you want |
 
 ### Non-interactive modes
 
@@ -239,29 +191,29 @@ Choose from pre-built bundles based on your workflow:
 1. **Preflight checks** - Verifies Claude Code, npx, and jq/python are available
 2. **Environment detection** - Finds installed languages, tools, and databases
 3. **Existing config detection** - Identifies servers you already have configured
-4. **Interactive selection** - Recommends servers based on your workflow, with suggestions based on detected tools
-5. **Path and connection prompts** - Asks for filesystem paths, database connection strings, and API keys
+4. **Interactive selection** - Recommends servers based on your workflow
+5. **Path and connection prompts** - Asks for filesystem paths, database connections, and API keys
 6. **Backup** - Creates a timestamped backup of your current settings
 7. **Installation** - Writes server configs to `~/.claude/settings.json`
 8. **Validation** - Verifies each package exists in the npm registry
 9. **Rollback on failure** - Restores your backup if anything goes wrong
 
-## Verify Your Setup
+## What Is MCP?
 
-After running setup, confirm everything is healthy:
+[MCP (Model Context Protocol)](https://modelcontextprotocol.io/) is an open standard for connecting AI tools to external data sources. Each MCP server gives Claude Code a specific capability: GitHub access, web search, database queries, persistent memory, and more.
 
-```bash
-./verify.sh
-```
+## Prerequisites
 
-This checks each server: package exists in npm, API keys are real (not placeholders), file paths are valid. Reports a health score with specific fixes for anything broken.
+| Requirement | Why | How to install |
+|------------|-----|---------------|
+| [Claude Code](https://docs.anthropic.com/en/docs/claude-code) | The AI assistant these servers plug into | `npm install -g @anthropic-ai/claude-code` |
+| Node.js v18+ | MCP servers run via npx | `brew install node` / `dnf install nodejs` / `apt install nodejs npm` |
+| jq or python3 | JSON processing during setup | `brew install jq` / `dnf install jq` / `apt install jq` |
 
-Additional options:
-
-```bash
-./verify.sh --quick    # Registry checks only (faster)
-./verify.sh --json     # Machine-readable output
-```
+Optional:
+- `GITHUB_PERSONAL_ACCESS_TOKEN` for private repo access and higher rate limits
+- `BRAVE_API_KEY` for web search (free tier available)
+- Database access for Postgres/SQLite servers
 
 ## Configuration Reference
 
@@ -284,17 +236,6 @@ Every MCP server entry follows this structure:
       }
     }
   }
-}
-```
-
-### Changing the Filesystem path
-
-By default, the filesystem server points to `~/projects`. To change it:
-
-```json
-"filesystem": {
-  "command": "npx",
-  "args": ["-y", "@modelcontextprotocol/server-filesystem", "/your/preferred/path"]
 }
 ```
 
@@ -321,7 +262,7 @@ Or add them directly to your settings:
 
 ### API key sources
 
-| Server | Variable | Where to Get It |
+| Server | Variable | Where to get it |
 |--------|----------|----------------|
 | GitHub | `GITHUB_PERSONAL_ACCESS_TOKEN` | https://github.com/settings/tokens |
 | Brave Search | `BRAVE_API_KEY` | https://brave.com/search/api/ |
@@ -331,28 +272,9 @@ Or add them directly to your settings:
 
 ### Example configs
 
-The `configs/` directory contains standalone JSON snippets for each server. Use these as reference if you want to manually add servers or configure them in project-level settings:
-
-```
-configs/
-  github-mcp.json
-  fetch-mcp.json
-  filesystem-mcp.json
-  brave-search-mcp.json
-  memory-mcp.json
-  context7-mcp.json
-  sequential-thinking-mcp.json
-  postgres-mcp.json
-  sqlite-mcp.json
-  puppeteer-mcp.json
-  slack-mcp.json
-  google-maps-mcp.json
-  everart-mcp.json
-```
+The `configs/` directory contains standalone JSON snippets for each server. Use these as reference if you want to manually add servers or configure them in project-level settings.
 
 ## Uninstall
-
-Remove MCP server entries added by this kit:
 
 ```bash
 ./uninstall.sh            # Remove all kit-managed servers
@@ -367,7 +289,7 @@ A backup is always created before removal. To restore:
 
 ## Troubleshooting
 
-See [troubleshooting.md](troubleshooting.md) for the 20 most common MCP setup problems and their solutions, organized by symptom.
+See [troubleshooting.md](troubleshooting.md) for the 20 most common MCP setup problems and their solutions.
 
 Quick fixes for the most frequent issues:
 
@@ -396,10 +318,6 @@ Install Node.js v18+:
 - Fedora/RHEL: `dnf install nodejs`
 - Ubuntu: `apt install nodejs npm`
 
-### Node.js too old
-
-MCP servers require Node.js v18+. Check with `node --version` and upgrade if needed. After upgrading, run `npx clear-npx-cache` so packages rebuild against the new runtime.
-
 ### Behind a corporate proxy
 
 If `npm view @modelcontextprotocol/server-github version` times out, configure npm to use your proxy:
@@ -411,28 +329,9 @@ npm config set https-proxy http://proxy.example.com:8080
 
 For TLS inspection (corporate CA), set `NODE_EXTRA_CA_CERTS` in each server's `env` block in `~/.claude/settings.json`. See [troubleshooting.md](troubleshooting.md) for details.
 
-### Conflicting server configs
-
-If a server behaves differently per project, check for duplicate keys between `~/.claude/settings.json` (user-level) and `.claude/settings.json` (project-level). Project-level entries replace user-level entries with the same name entirely. See [troubleshooting.md](troubleshooting.md) for diagnostic steps.
-
 ### GitHub rate limiting
 
 You are hitting the unauthenticated rate limit (60 requests/hour). Set `GITHUB_PERSONAL_ACCESS_TOKEN` to raise it to 5,000 requests/hour. See [API key sources](#api-key-sources) above.
-
-## Prerequisites
-
-Quick check:
-
-| Requirement | Why | How to Install |
-|------------|-----|---------------|
-| [Claude Code](https://docs.anthropic.com/en/docs/claude-code) | The AI assistant these servers plug into | `npm install -g @anthropic-ai/claude-code` |
-| Node.js v18+ | MCP servers run via npx | `brew install node` / `dnf install nodejs` / `apt install nodejs npm` |
-| jq or python3 | JSON processing during setup | `brew install jq` / `dnf install jq` / `apt install jq` |
-
-Optional:
-- `GITHUB_PERSONAL_ACCESS_TOKEN` for private repo access and higher rate limits
-- `BRAVE_API_KEY` for web search (free tier available)
-- Database access for Postgres/SQLite servers
 
 ## Advanced Usage
 
@@ -445,8 +344,6 @@ See [advanced-patterns.md](advanced-patterns.md) for power-user configurations:
 - Composing servers for specific workflows
 - Performance tuning
 - Team-shared configurations
-- Custom server arguments
-- Debugging MCP connections
 
 ## Contributing
 
