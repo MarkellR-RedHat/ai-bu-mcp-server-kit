@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #
-# setup.sh - Premium installer for MCP servers in Claude Code
+# setup.sh - Configure MCP servers for Claude Code
 #
 # After setup, Claude Code will be able to search your GitHub repos,
 # fetch web pages, query databases, and read your local files.
@@ -174,8 +174,7 @@ restore_backup() {
     cp "$latest" "$SETTINGS_FILE"
     info "Restored settings from $(basename "$latest")"
     echo ""
-    echo -e "  ${DIM}Your Claude Code settings have been reverted to this backup.${NC}"
-    echo -e "  ${DIM}Restart Claude Code for the changes to take effect.${NC}"
+    echo -e "  ${DIM}Restart Claude Code to pick up the restored settings.${NC}"
     echo ""
     exit 0
 }
@@ -595,10 +594,6 @@ install_single_server() {
     local extra_args="${SERVER_ARGS[$key]}"
     local env_vars="${SERVER_ENV[$key]}"
 
-    echo ""
-    echo -e "  ${WORKING}  ${BOLD}[${server_num}/${server_total}]${NC} Installing ${BOLD}${SERVER_NAMES[$key]}${NC}..."
-    echo -e "     ${DIM}Package: ${package}${NC}"
-
     # Check if already configured
     local already_exists=false
     for existing in "${EXISTING_SERVERS[@]}"; do
@@ -608,8 +603,9 @@ install_single_server() {
         fi
     done
 
+    local action_verb="Adding"
     if $already_exists; then
-        echo -e "     ${DIM}Already configured, updating to latest${NC}"
+        action_verb="Updating"
     fi
 
     # Write the config
@@ -620,12 +616,11 @@ install_single_server() {
     pkg_version=$(npm view "$package" version 2>/dev/null || echo "")
 
     if [[ -n "$pkg_version" ]]; then
-        info "${SERVER_NAMES[$key]} configured ${DIM}(v${pkg_version} verified)${NC}"
+        info "${action_verb} ${SERVER_NAMES[$key]}... done ${DIM}(${package}@${pkg_version})${NC}"
         return 0
     else
-        warn "${SERVER_NAMES[$key]} configured, but package verification failed"
-        echo -e "     ${DIM}Possible causes: no internet connection, or the package name changed.${NC}"
-        echo -e "     ${DIM}To check manually:  npm view ${package} version${NC}"
+        warn "${action_verb} ${SERVER_NAMES[$key]}... wrote config, but npm verify failed"
+        echo -e "     ${DIM}Check connectivity: npm view ${package} version${NC}"
         return 0
     fi
 }
@@ -902,7 +897,7 @@ prompt_api_keys() {
                     echo ""
                     echo -e "  ${BOLD}Brave Search API Key${NC}"
                     echo ""
-                    echo -e "  ${UNDERLINE}What it unlocks:${NC} Claude Code can search the web in real time"
+                    echo -e "  ${UNDERLINE}What this does:${NC} Claude Code can search the web in real time"
                     echo -e "  to find current docs, tutorials, Stack Overflow answers, and more."
                     echo ""
                     echo -e "  ${UNDERLINE}Where to get it:${NC}"
@@ -922,7 +917,7 @@ prompt_api_keys() {
                     echo ""
                     echo -e "  ${BOLD}Google Maps API Key${NC}"
                     echo ""
-                    echo -e "  ${UNDERLINE}What it unlocks:${NC} Claude Code can look up addresses, get"
+                    echo -e "  ${UNDERLINE}What this does:${NC} Claude Code can look up addresses, get"
                     echo -e "  directions, find nearby places, and calculate distances."
                     echo ""
                     echo -e "  ${UNDERLINE}Where to get it:${NC}"
@@ -943,7 +938,7 @@ prompt_api_keys() {
                     echo ""
                     echo -e "  ${BOLD}Slack Bot Token${NC}"
                     echo ""
-                    echo -e "  ${UNDERLINE}What it unlocks:${NC} Claude Code can read and post messages"
+                    echo -e "  ${UNDERLINE}What this does:${NC} Claude Code can read and post messages"
                     echo -e "  in your Slack workspace channels."
                     echo ""
                     echo -e "  ${UNDERLINE}Where to get it:${NC}"
@@ -975,7 +970,7 @@ prompt_api_keys() {
                     echo ""
                     echo -e "  ${BOLD}EverArt API Key${NC}"
                     echo ""
-                    echo -e "  ${UNDERLINE}What it unlocks:${NC} Claude Code can generate images"
+                    echo -e "  ${UNDERLINE}What this does:${NC} Claude Code can generate images"
                     echo -e "  and train custom AI art models on your behalf."
                     echo ""
                     echo -e "  ${UNDERLINE}Where to get it:${NC}"
@@ -1006,7 +1001,7 @@ prompt_github_token() {
         echo ""
         echo -e "  ${BOLD}GitHub Personal Access Token${NC} ${DIM}(optional but recommended)${NC}"
         echo ""
-        echo -e "  ${UNDERLINE}What it unlocks:${NC} Access to your private repos, higher rate limits"
+        echo -e "  ${UNDERLINE}What this does:${NC} Access to your private repos, higher rate limits"
         echo -e "  (5,000 requests/hour instead of 60), and the ability to create"
         echo -e "  issues and pull requests."
         echo ""
@@ -1037,23 +1032,19 @@ prompt_github_token() {
 
 rollback() {
     echo ""
-    fail "Installation failed unexpectedly."
+    fail "Setup failed. See error above."
     echo ""
     if [[ -f "$BACKUP_FILE" ]]; then
-        echo -e "  ${DIM}Rolling back to your previous settings...${NC}"
         cp "$BACKUP_FILE" "$SETTINGS_FILE"
-        info "Settings restored from backup"
-        echo ""
-        echo -e "  ${DIM}Your Claude Code configuration is back to where it was before${NC}"
-        echo -e "  ${DIM}this script ran. Nothing has changed.${NC}"
+        info "Rolled back settings to pre-setup state"
     else
-        echo -e "  ${DIM}No backup was created yet, so your settings are unchanged.${NC}"
+        echo -e "  ${DIM}No backup exists. Settings are unchanged.${NC}"
     fi
     echo ""
-    echo -e "  ${BOLD}What to do next:${NC}"
-    echo -e "    1. Check the error message above"
-    echo -e "    2. Make sure you have internet access"
-    echo -e "    3. Try running the script again: ./setup.sh"
+    echo -e "  ${BOLD}Next:${NC}"
+    echo -e "    1. Read the error above"
+    echo -e "    2. Check internet: curl -s https://registry.npmjs.org/ | head -1"
+    echo -e "    3. Retry: ./setup.sh"
     echo ""
     exit 1
 }
@@ -1069,7 +1060,7 @@ show_health_dashboard() {
     echo ""
     echo -e "  ${BOLD}${GREEN}┌──────────────────────────────────────────────────────────┐${NC}"
     echo -e "  ${BOLD}${GREEN}│                                                          │${NC}"
-    echo -e "  ${BOLD}${GREEN}│              Setup Complete. You're all set.              │${NC}"
+    echo -e "  ${BOLD}${GREEN}│     Done. ${#installed[@]} server(s) configured in settings.json.      │${NC}"
     echo -e "  ${BOLD}${GREEN}│                                                          │${NC}"
     echo -e "  ${BOLD}${GREEN}└──────────────────────────────────────────────────────────┘${NC}"
 
@@ -1160,10 +1151,8 @@ show_health_dashboard() {
     fi
 
     # What to try first
-    echo -e "  ${BOLD}What to try first${NC}"
+    echo -e "  ${BOLD}Try these in Claude Code${NC}"
     divider
-    echo ""
-    echo -e "  Open Claude Code and paste any of these prompts:"
     echo ""
 
     if [[ " ${installed[*]} " == *" github "* ]]; then
@@ -1203,15 +1192,13 @@ show_health_dashboard() {
     echo ""
 
     # Verification and file locations
-    echo -e "  ${BOLD}Verify your setup${NC}"
+    echo -e "  ${BOLD}Verify${NC}"
     divider
     echo ""
     if [[ -f "$SCRIPT_DIR/verify.sh" ]]; then
-        echo -e "    Run the verification script to confirm everything works:"
-        echo -e "    ${CYAN}./verify.sh${NC}"
+        echo -e "    ${CYAN}./verify.sh${NC}    # full diagnostic"
     else
         echo -e "    Restart Claude Code to load the new servers."
-        echo -e "    Each server will connect automatically when you use it."
     fi
     echo ""
     echo -e "  ${DIM}Settings file: $SETTINGS_FILE${NC}"
@@ -1232,17 +1219,12 @@ main() {
     echo -e "  ${BOLD}${CYAN}│                                                          │${NC}"
     echo -e "  ${BOLD}${CYAN}│           MCP Server Kit for Claude Code                 │${NC}"
     echo -e "  ${BOLD}${CYAN}│                                                          │${NC}"
-    echo -e "  ${BOLD}${CYAN}│     Give Claude Code superpowers with MCP servers.        │${NC}"
+    echo -e "  ${BOLD}${CYAN}│     Configure MCP servers for Claude Code.                │${NC}"
     echo -e "  ${BOLD}${CYAN}│                                                          │${NC}"
     echo -e "  ${BOLD}${CYAN}└──────────────────────────────────────────────────────────┘${NC}"
     echo ""
-    echo -e "  After setup, Claude Code will be able to:"
-    echo ""
-    echo -e "    ${DIAMOND}  Search your GitHub repos, issues, and pull requests"
-    echo -e "    ${DIAMOND}  Fetch and read any web page, API, or documentation"
-    echo -e "    ${DIAMOND}  Read and write files on your local machine"
-    echo -e "    ${DIAMOND}  Search the web for up-to-date answers"
-    echo -e "    ${DIAMOND}  Query your databases and remember your preferences"
+    echo -e "  This adds GitHub, web fetch, filesystem, database, and search"
+    echo -e "  capabilities to Claude Code via MCP servers."
     echo ""
 
     # Calculate total steps based on mode
@@ -1259,10 +1241,7 @@ main() {
 
     if ! $preflight_passed; then
         echo ""
-        fail "Some prerequisites are missing. Fix the issues above and try again."
-        echo ""
-        echo -e "  ${DIM}The items marked with ${CROSS} need to be installed before this${NC}"
-        echo -e "  ${DIM}script can configure your MCP servers.${NC}"
+        fail "Missing prerequisites. Fix the items marked ${CROSS} above and re-run ./setup.sh."
         echo ""
         exit 1
     fi
@@ -1310,10 +1289,9 @@ main() {
 
     if [[ $selected_count -eq 0 ]]; then
         echo ""
-        warn "No servers selected. Nothing to install."
+        warn "No servers selected."
         echo ""
-        echo -e "  ${DIM}Run ./setup.sh again to pick some servers, or try:${NC}"
-        echo -e "  ${DIM}  ./setup.sh --minimal   (installs the basics)${NC}"
+        echo -e "  ${DIM}Try: ./setup.sh --minimal${NC}"
         echo ""
         exit 0
     fi
@@ -1369,10 +1347,8 @@ main() {
             if install_single_server "$key" "$server_num" "$selected_count"; then
                 installed+=("$key")
             else
-                fail "Failed to install ${SERVER_NAMES[$key]}"
-                echo -e "     ${DIM}The server configuration was written but the package could not${NC}"
-                echo -e "     ${DIM}be verified. Check your internet connection and try:${NC}"
-                echo -e "     ${DIM}  npm view ${SERVER_PACKAGES[$key]} version${NC}"
+                fail "${SERVER_NAMES[$key]} config written, but package verify failed"
+                echo -e "     ${DIM}Check: npm view ${SERVER_PACKAGES[$key]} version${NC}"
                 install_failed=true
             fi
         fi
@@ -1383,19 +1359,16 @@ main() {
 
     if $install_failed; then
         echo ""
-        warn "Some servers had issues during verification. Check the output above."
-        echo -e "     ${DIM}The configurations were still written. These servers may work${NC}"
-        echo -e "     ${DIM}fine once you have internet access or restart Claude Code.${NC}"
+        warn "Some package verifications failed. Configs were still written."
+        echo -e "     ${DIM}They may work once npm registry is reachable. Run ./verify.sh to recheck.${NC}"
     fi
 
     if [[ ${#installed[@]} -eq 0 ]]; then
         echo ""
-        fail "No servers were installed successfully."
+        fail "No servers installed. Check internet and npm:"
         echo ""
-        echo -e "  ${BOLD}What to try:${NC}"
-        echo -e "    1. Check your internet connection"
-        echo -e "    2. Make sure npm is working:  npm view @anthropic-ai/mcp-fetch version"
-        echo -e "    3. Run the script again:  ./setup.sh"
+        echo -e "    npm view @anthropic-ai/mcp-fetch version"
+        echo -e "    ./setup.sh"
         echo ""
         exit 1
     fi

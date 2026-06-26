@@ -1,10 +1,9 @@
 #!/usr/bin/env bash
 #
-# verify.sh - MCP Server Diagnostic Tool
+# verify.sh - Diagnose MCP server configuration
 #
-# When something feels wrong with your MCP server setup in Claude Code,
-# run this script. It will tell you EXACTLY what is broken and EXACTLY
-# how to fix it.
+# Checks each configured MCP server: package exists, API keys set,
+# paths valid. Reports what's broken and how to fix it.
 #
 # Usage:
 #   ./verify.sh          Full diagnostic with per-server checks and fix suggestions
@@ -534,8 +533,7 @@ run_checks() {
     if ! $JSON_MODE; then
         echo ""
         echo -e "${BOLD}${CYAN}========================================================${NC}"
-        echo -e "${BOLD}${CYAN}  MCP Server Diagnostic Tool                            ${NC}"
-        echo -e "${BOLD}${CYAN}  Checking your Claude Code MCP server configuration... ${NC}"
+        echo -e "${BOLD}${CYAN}  MCP Server Diagnostics                                ${NC}"
         echo -e "${BOLD}${CYAN}========================================================${NC}"
         echo ""
     fi
@@ -545,8 +543,8 @@ run_checks() {
     # ---------------------------------------------------------------
 
     if ! $JSON_MODE; then
-        echo -e "${BOLD}Preflight Diagnostics${NC}"
-        echo -e "${DIM}Verifying that your system is ready for MCP servers${NC}"
+        echo -e "${BOLD}Preflight${NC}"
+        echo -e "${DIM}System requirements for MCP servers${NC}"
         echo ""
     fi
 
@@ -648,8 +646,7 @@ with open(sys.argv[1]) as f:
     declare -a next_steps=()
 
     if ! $JSON_MODE; then
-        echo -e "${BOLD}Per-Server Diagnostics${NC}"
-        echo -e "${DIM}Testing each configured MCP server individually${NC}"
+        echo -e "${BOLD}Per-Server Checks${NC}"
         echo ""
     fi
 
@@ -673,19 +670,18 @@ with open(sys.argv[1]) as f:
         if [[ -z "$cmd" || "$cmd" == "null" ]]; then
             status="fail"
             status_msg="No command configured"
-            diagnostics+=("Here's what's wrong: The server entry has no \"command\" field.")
-            diagnostics+=("Fix: Add a \"command\" field to the \"$server_name\" block in ~/.claude/settings.json")
-            diagnostics+=("Example: \"command\": \"npx\"")
+            diagnostics+=("No \"command\" field in the \"$server_name\" entry.")
+            diagnostics+=("Fix: Add \"command\": \"npx\" to the \"$server_name\" block in ~/.claude/settings.json")
             next_steps+=("Add \"command\": \"npx\" to the \"$server_name\" server in ~/.claude/settings.json")
         elif ! command -v "$cmd" &>/dev/null; then
             status="fail"
             status_msg="Command '$cmd' not found on PATH"
-            diagnostics+=("Here's what's wrong: The command \"$cmd\" does not exist or is not on your PATH.")
+            diagnostics+=("\"$cmd\" not found on PATH.")
             if [[ "$cmd" == "npx" ]]; then
-                diagnostics+=("Fix: Install Node.js v18+ to get npx, then try again.")
+                diagnostics+=("Fix: Install Node.js v18+ (includes npx).")
                 next_steps+=("Install Node.js v18+ (brew install node)")
             else
-                diagnostics+=("Fix: Install $cmd, or change the command to an absolute path that exists.")
+                diagnostics+=("Fix: Install $cmd, or use an absolute path in the command field.")
                 next_steps+=("Install $cmd or update the command path for \"$server_name\" in ~/.claude/settings.json")
             fi
         fi
@@ -706,13 +702,12 @@ with open(sys.argv[1]) as f:
             elif [[ "$enoent_type" == "npx_missing" ]]; then
                 status="fail"
                 status_msg="npx cannot be found"
-                diagnostics+=("Here's what's wrong: npx is not on the PATH.")
-                diagnostics+=("Fix: Install Node.js v18+ to get npx.")
+                diagnostics+=("npx not on PATH. Install Node.js v18+.")
                 next_steps+=("Install Node.js v18+")
             elif [[ "$enoent_type" == "bad_absolute" ]]; then
                 status="fail"
                 status_msg="Command path does not exist: $enoent_path"
-                diagnostics+=("Here's what's wrong: The absolute path \"$enoent_path\" does not exist or is not executable.")
+                diagnostics+=("Path \"$enoent_path\" does not exist or is not executable.")
                 local correct_path
                 correct_path=$(which npx 2>/dev/null || echo "")
                 if [[ -n "$correct_path" ]]; then
@@ -733,10 +728,9 @@ with open(sys.argv[1]) as f:
                 else
                     status="fail"
                     status_msg="Package not found: $pkg"
-                    diagnostics+=("Here's what's wrong: The npm package \"$pkg\" does not exist or cannot be reached.")
-                    diagnostics+=("Fix: Verify the package name is correct by running:")
-                    diagnostics+=("  npm view $pkg version")
-                    next_steps+=("Verify the package name for \"$server_name\": npm view $pkg version")
+                    diagnostics+=("Package \"$pkg\" not found in npm registry.")
+                    diagnostics+=("Verify: npm view $pkg version")
+                    next_steps+=("Check package name for \"$server_name\": npm view $pkg version")
                 fi
             else
                 if verify_package_exists "$pkg"; then
@@ -744,21 +738,19 @@ with open(sys.argv[1]) as f:
                 else
                     status="fail"
                     status_msg="Package not found: $pkg"
-                    diagnostics+=("Here's what's wrong: The npm package \"$pkg\" does not exist or cannot be reached.")
-                    diagnostics+=("Fix: Verify the package name is correct by running:")
-                    diagnostics+=("  npm view $pkg version")
+                    diagnostics+=("Package \"$pkg\" not found in npm registry.")
+                    diagnostics+=("Verify: npm view $pkg version")
                     if ! curl -s --max-time 3 https://registry.npmjs.org/ &>/dev/null; then
-                        diagnostics+=("Note: npm registry is unreachable. This may be a network issue.")
+                        diagnostics+=("npm registry unreachable. Check your network.")
                     fi
-                    next_steps+=("Verify the package name for \"$server_name\": npm view $pkg version")
+                    next_steps+=("Check package name for \"$server_name\": npm view $pkg version")
                 fi
             fi
         elif [[ "$status" == "pass" && -z "$pkg" && "$cmd" == "npx" ]]; then
             status="fail"
             status_msg="No package specified in args"
-            diagnostics+=("Here's what's wrong: The server uses npx but no package name is listed in \"args\".")
-            diagnostics+=("Fix: Add the package name to the \"args\" array, e.g.:")
-            diagnostics+=("  \"args\": [\"-y\", \"@modelcontextprotocol/server-github\"]")
+            diagnostics+=("Server uses npx but no package name in \"args\".")
+            diagnostics+=("Fix: \"args\": [\"-y\", \"@modelcontextprotocol/server-github\"]")
             next_steps+=("Add a package name to the \"args\" array for \"$server_name\"")
         fi
 
@@ -779,8 +771,7 @@ with open(sys.argv[1]) as f:
                     local val
                     val=$(get_server_env_value "$server_name" "$key")
                     if [[ -z "$val" || "$val" == *"<your-"* || "$val" == *"your_"* || "$val" == *"-here>"* ]]; then
-                        diagnostics+=("This works but with limitations: $key has a placeholder value.")
-                        diagnostics+=("The server will start, but API calls requiring this key will fail.")
+                        diagnostics+=("$key is a placeholder. Server starts but API calls will fail.")
 
                         # Get specific key info
                         local key_url="" key_scopes="" key_note=""
@@ -792,7 +783,7 @@ with open(sys.argv[1]) as f:
                             esac
                         done <<< "$(get_api_key_info "$key")"
 
-                        diagnostics+=("To get full functionality:")
+                        diagnostics+=("To fix:")
                         if [[ -n "$key_url" && "$key_url" != "Check the server documentation" ]]; then
                             diagnostics+=("  1. Get your key at: $key_url")
                         fi
@@ -802,7 +793,7 @@ with open(sys.argv[1]) as f:
                         if [[ -n "$key_note" ]]; then
                             diagnostics+=("  3. $key_note")
                         fi
-                        diagnostics+=("  4. Add it to ~/.claude/settings.json in the \"$server_name\" > \"env\" > \"$key\" field")
+                        diagnostics+=("  4. Set it in ~/.claude/settings.json under \"$server_name\" > \"env\" > \"$key\"")
 
                         next_steps+=("Set $key for \"$server_name\" in ~/.claude/settings.json (get key at ${key_url:-the server docs})")
                     fi
@@ -955,7 +946,7 @@ with open(sys.argv[1]) as f:
         # ---------------------------------------------------------------
 
         echo -e "${BOLD}${CYAN}========================================================${NC}"
-        echo -e "${BOLD}${CYAN}  Diagnostic Summary                                    ${NC}"
+        echo -e "${BOLD}${CYAN}  Summary                                               ${NC}"
         echo -e "${BOLD}${CYAN}========================================================${NC}"
         echo ""
 
@@ -992,7 +983,7 @@ with open(sys.argv[1]) as f:
         # ---------------------------------------------------------------
 
         if [[ ${#FIXES_APPLIED[@]} -gt 0 ]]; then
-            echo -e "${BOLD}${GREEN}Fixes Applied Automatically:${NC}"
+            echo -e "${BOLD}${GREEN}Auto-fixed:${NC}"
             for fx in "${FIXES_APPLIED[@]}"; do
                 echo -e "  ${GREEN}*${NC} $fx"
             done
@@ -1000,7 +991,7 @@ with open(sys.argv[1]) as f:
         fi
 
         if [[ ${#FIXES_AVAILABLE[@]} -gt 0 ]] && ! $FIX_MODE; then
-            echo -e "  ${DIM}Tip: Run with --fix to auto-fix simple issues (missing directories, cache, etc.)${NC}"
+            echo -e "  ${DIM}Run with --fix to auto-fix simple issues (missing dirs, cache).${NC}"
             echo ""
         fi
 
@@ -1010,7 +1001,7 @@ with open(sys.argv[1]) as f:
 
         if [[ $fail_count -gt 0 || $warn_count -gt 0 ]]; then
             echo -e "${BOLD}Next Steps${NC}"
-            echo -e "${DIM}Copy and paste these commands to fix your setup:${NC}"
+            echo -e "${DIM}Fix these, then re-run ./verify.sh:${NC}"
             echo ""
 
             local step_num=1
@@ -1028,21 +1019,15 @@ with open(sys.argv[1]) as f:
             # Add general advice if there were failures
             if [[ $fail_count -gt 0 ]]; then
                 echo ""
-                echo -e "  ${BOLD}${step_num}.${NC} After making fixes, verify again:"
-                echo "     ./verify.sh"
+                echo -e "  ${BOLD}${step_num}.${NC} Re-run: ./verify.sh"
                 step_num=$((step_num + 1))
-
-                echo ""
-                echo -e "  ${BOLD}${step_num}.${NC} Restart Claude Code to pick up config changes:"
-                echo "     Exit your Claude Code session and relaunch with: claude"
+                echo -e "  ${BOLD}${step_num}.${NC} Restart Claude Code: exit and run 'claude'"
                 step_num=$((step_num + 1))
             fi
 
-            # npx cache tip if there are failures
             if [[ $fail_count -gt 0 ]]; then
                 echo ""
-                echo -e "  ${DIM}If servers were working before and just stopped, try clearing the npx cache:${NC}"
-                echo -e "  ${DIM}  npx clear-npx-cache${NC}"
+                echo -e "  ${DIM}Servers broke suddenly? Try: npx clear-npx-cache${NC}"
             fi
 
             echo ""
@@ -1053,9 +1038,9 @@ with open(sys.argv[1]) as f:
         # ---------------------------------------------------------------
 
         if [[ $pass_count -eq $total ]]; then
-            echo -e "  ${GREEN}${BOLD}All servers are healthy!${NC}"
+            echo -e "  ${GREEN}${BOLD}All $total server(s) healthy.${NC}"
             echo ""
-            echo -e "  Open Claude Code and try one of these prompts:"
+            echo -e "  Try in Claude Code:"
             echo ""
 
             # Show example prompts based on configured servers
@@ -1093,9 +1078,7 @@ with open(sys.argv[1]) as f:
         fi
 
         if [[ $warn_count -gt 0 && $fail_count -eq 0 ]]; then
-            echo -e "  ${YELLOW}Some servers have warnings (usually missing API keys).${NC}"
-            echo "  They will start, but certain API calls will fail until you add real keys."
-            echo "  See the Next Steps above for exactly what to do."
+            echo -e "  ${YELLOW}$warn_count warning(s): servers start but need real API keys for full functionality.${NC}"
             echo ""
         fi
     fi

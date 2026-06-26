@@ -1,8 +1,8 @@
 # MCP Server Kit for Claude Code
 
-Claude Code is powerful on its own. With MCP servers, it can search your GitHub repos, fetch web pages, read your local files, and query your databases. Setup takes 3 minutes.
+MCP servers extend Claude Code with GitHub search, web fetch, local file access, and database queries. Setup takes 3 minutes.
 
-## What You Unlock
+## What Changes
 
 | Without MCP servers | With MCP servers |
 |---|---|
@@ -22,9 +22,9 @@ chmod +x setup.sh verify.sh uninstall.sh
 ./setup.sh
 ```
 
-The setup wizard handles everything. It checks your system, recommends the right servers for your workflow, and verifies each one works.
+The setup script checks prerequisites, lets you pick servers, and verifies each package resolves.
 
-Want to skip the wizard? Install everything in one shot:
+Skip the interactive prompts:
 
 ```bash
 ./setup.sh --all
@@ -84,13 +84,13 @@ If Claude Code responds with actual data instead of an error, your MCP servers a
 
 ## What is MCP?
 
-MCP servers are plugins that give Claude Code new abilities. Without them, Claude works with your local files and terminal. With them, it can search the web, query databases, interact with GitHub, and remember things across sessions. [MCP (Model Context Protocol)](https://modelcontextprotocol.io/) is the open standard that makes this possible.
+[MCP (Model Context Protocol)](https://modelcontextprotocol.io/) is an open standard for connecting AI tools to external data sources. Each MCP server gives Claude Code a specific capability: GitHub access, web search, database queries, persistent memory, etc.
 
 ## Available Servers
 
 ### Start with these three
 
-These are the servers that 90% of users want. The `--minimal` flag installs exactly these.
+The `--minimal` flag installs exactly these three.
 
 | Server | Package | What It Does |
 |--------|---------|-------------|
@@ -212,13 +212,7 @@ After running setup, confirm everything is healthy:
 ./verify.sh
 ```
 
-The health dashboard will:
-- Test each configured MCP server
-- Show connection status with color indicators
-- Check API keys for placeholder values
-- Validate file paths exist and are readable
-- Diagnose common problems and suggest fixes
-- Report an overall health score
+This checks each server: package exists in npm, API keys are real (not placeholders), file paths are valid. Reports a health score with specific fixes for anything broken.
 
 Additional options:
 
@@ -366,7 +360,7 @@ You are hitting the unauthenticated rate limit (60 requests/hour). Set `GITHUB_P
 
 ## Prerequisites
 
-Most people already have what they need. Here is a quick check:
+Quick check:
 
 | Requirement | Why | How to Install |
 |------------|-----|---------------|
@@ -395,7 +389,7 @@ See [advanced-patterns.md](advanced-patterns.md) for power-user configurations:
 
 ## Contributing
 
-Contributions are welcome. If you have a useful MCP server configuration, open a PR adding it to the `configs/` directory and updating setup.sh.
+Open a PR to add server configs to `configs/` or improve the setup scripts.
 
 ## License
 
