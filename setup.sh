@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
 #
-# setup.sh - Install and configure MCP servers for Claude Code
+# setup.sh - Premium installer for MCP servers in Claude Code
 #
-# A premium setup experience: detects your environment, recommends
-# the right servers, validates each one works, and rolls back on failure.
+# After setup, Claude Code will be able to search your GitHub repos,
+# fetch web pages, query databases, and read your local files.
 #
 # Usage:
 #   ./setup.sh              Interactive mode with workflow selection
@@ -11,6 +11,8 @@
 #   ./setup.sh --minimal    Install only the essentials (GitHub, Fetch, Filesystem)
 #   ./setup.sh --list       Show available servers and exit
 #   ./setup.sh --restore    Restore the most recent settings backup
+#   ./setup.sh --yes, -y    Skip confirmation prompts
+#   ./setup.sh --help, -h   Show this help
 
 set -euo pipefail
 
@@ -34,29 +36,46 @@ YELLOW='\033[1;33m'
 BLUE='\033[0;34m'
 CYAN='\033[0;36m'
 MAGENTA='\033[0;35m'
+WHITE='\033[1;37m'
 BOLD='\033[1m'
 DIM='\033[2m'
+UNDERLINE='\033[4m'
 NC='\033[0m'
 
 # Progress indicators
-CHECKMARK="${GREEN}[OK]${NC}"
-CROSS="${RED}[FAIL]${NC}"
-ARROW="${CYAN}[>>]${NC}"
-WARN="${YELLOW}[WARN]${NC}"
-INFO="${BLUE}[INFO]${NC}"
-WORKING="${MAGENTA}[..]${NC}"
+CHECKMARK="${GREEN}✓${NC}"
+CROSS="${RED}✗${NC}"
+ARROW="${CYAN}▸${NC}"
+WARN="${YELLOW}!${NC}"
+INFO="${BLUE}i${NC}"
+WORKING="${MAGENTA}○${NC}"
+DOT="${DIM}·${NC}"
+DIAMOND="${CYAN}◆${NC}"
 
-info()    { echo -e "$CHECKMARK  $1"; }
-warn()    { echo -e "$WARN  $1"; }
-fail()    { echo -e "$CROSS  $1"; }
-step()    { echo -e "$ARROW  $1"; }
-note()    { echo -e "$INFO  $1"; }
-working() { echo -e "$WORKING  $1"; }
+info()    { echo -e "  ${CHECKMARK}  $1"; }
+warn()    { echo -e "  ${WARN}  $1"; }
+fail()    { echo -e "  ${CROSS}  $1"; }
+step()    { echo -e "  ${ARROW}  $1"; }
+note()    { echo -e "  ${INFO}  $1"; }
+working() { echo -e "  ${WORKING}  $1"; }
+
+divider() {
+    echo -e "  ${DIM}$(printf '%.0s─' $(seq 1 62))${NC}"
+}
 
 header() {
     echo ""
-    echo -e "${BOLD}${CYAN}$1${NC}"
-    echo -e "${DIM}$(printf '%.0s-' $(seq 1 ${#1}))${NC}"
+    echo -e "  ${BOLD}${CYAN}$1${NC}"
+    divider
+}
+
+phase_header() {
+    local step_num="$1"
+    local total="$2"
+    local label="$3"
+    echo ""
+    echo -e "  ${BOLD}${WHITE}Step ${step_num} of ${total}${NC}  ${DIM}│${NC}  ${BOLD}${label}${NC}"
+    divider
 }
 
 # -------------------------------------------------------------------
@@ -89,6 +108,9 @@ for arg in "$@"; do
             NONINTERACTIVE=true
             ;;
         --help|-h)
+            echo ""
+            echo -e "${BOLD}MCP Server Kit for Claude Code${NC}"
+            echo ""
             echo "Usage: ./setup.sh [OPTIONS]"
             echo ""
             echo "Options:"
@@ -99,6 +121,12 @@ for arg in "$@"; do
             echo "  --restore    Restore the most recent settings backup"
             echo "  --yes, -y    Skip confirmation prompts"
             echo "  --help, -h   Show this help"
+            echo ""
+            echo "Examples:"
+            echo "  ./setup.sh               # Walk through interactive setup"
+            echo "  ./setup.sh --minimal -y  # Quick install of core servers, no prompts"
+            echo "  ./setup.sh --restore     # Undo the last setup by restoring backup"
+            echo ""
             exit 0
             ;;
         *) echo "Unknown flag: $arg. Use --help for usage."; exit 1 ;;
@@ -111,7 +139,12 @@ done
 
 restore_backup() {
     if [[ ! -d "$BACKUP_DIR" ]]; then
+        echo ""
         fail "No backup directory found at $BACKUP_DIR"
+        echo ""
+        echo -e "  ${DIM}This means setup.sh has never been run, or backups were deleted.${NC}"
+        echo -e "  ${DIM}Run ./setup.sh to create a fresh configuration.${NC}"
+        echo ""
         exit 1
     fi
 
@@ -119,22 +152,31 @@ restore_backup() {
     latest=$(ls -1t "$BACKUP_DIR"/settings.backup.*.json 2>/dev/null | head -1)
 
     if [[ -z "$latest" ]]; then
+        echo ""
         fail "No backups found in $BACKUP_DIR"
+        echo ""
+        echo -e "  ${DIM}The backup directory exists but contains no backup files.${NC}"
+        echo -e "  ${DIM}Run ./setup.sh to create a fresh configuration.${NC}"
+        echo ""
         exit 1
     fi
 
     echo ""
-    echo -e "${BOLD}Available backups:${NC}"
+    echo -e "  ${BOLD}Available backups (most recent first):${NC}"
     echo ""
     ls -1t "$BACKUP_DIR"/settings.backup.*.json 2>/dev/null | head -5 | while read -r f; do
         local ts
         ts=$(basename "$f" | sed 's/settings.backup.\(.*\).json/\1/')
-        echo "  $(basename "$f")  ($(date -r "$f" '+%Y-%m-%d %H:%M:%S' 2>/dev/null || echo "$ts"))"
+        echo -e "    ${DOT}  $(basename "$f")  ${DIM}($(date -r "$f" '+%Y-%m-%d %H:%M:%S' 2>/dev/null || echo "$ts"))${NC}"
     done
     echo ""
 
     cp "$latest" "$SETTINGS_FILE"
     info "Restored settings from $(basename "$latest")"
+    echo ""
+    echo -e "  ${DIM}Your Claude Code settings have been reverted to this backup.${NC}"
+    echo -e "  ${DIM}Restart Claude Code for the changes to take effect.${NC}"
+    echo ""
     exit 0
 }
 
@@ -152,14 +194,15 @@ check_claude_code() {
     if command -v claude &> /dev/null; then
         local version
         version=$(claude --version 2>/dev/null || echo "version unknown")
-        info "Claude Code installed ($version)"
+        info "Claude Code installed ${DIM}($version)${NC}"
     else
         fail "Claude Code is not installed"
         echo ""
-        echo "    Install it with:"
+        echo -e "    ${BOLD}To install:${NC}"
         echo "      npm install -g @anthropic-ai/claude-code"
         echo ""
-        echo "    Full guide: https://docs.anthropic.com/en/docs/claude-code"
+        echo -e "    ${BOLD}Full guide:${NC}"
+        echo "      https://docs.anthropic.com/en/docs/claude-code"
         echo ""
         preflight_passed=false
     fi
@@ -167,14 +210,17 @@ check_claude_code() {
 
 check_npx() {
     if command -v npx &> /dev/null; then
-        info "npx available ($(npx --version 2>/dev/null))"
+        info "npx available ${DIM}($(npx --version 2>/dev/null))${NC}"
     else
         fail "npx is not installed"
         echo ""
-        echo "    Install Node.js v18+ to get npx:"
+        echo -e "    ${BOLD}npx comes with Node.js. Install Node.js v18 or later:${NC}"
+        echo ""
         echo "      macOS:       brew install node"
         echo "      Fedora/RHEL: dnf install nodejs"
         echo "      Ubuntu:      apt install nodejs npm"
+        echo ""
+        echo -e "    ${DIM}After installing, close and reopen your terminal, then try again.${NC}"
         echo ""
         preflight_passed=false
     fi
@@ -186,24 +232,28 @@ check_json_tool() {
         info "JSON processing: jq"
     elif command -v python3 &> /dev/null; then
         JSON_TOOL="python3"
-        info "JSON processing: python3 (install jq for faster runs)"
+        info "JSON processing: python3 ${DIM}(install jq for faster runs)${NC}"
     elif command -v python &> /dev/null; then
         JSON_TOOL="python"
-        info "JSON processing: python (install jq for faster runs)"
+        info "JSON processing: python ${DIM}(install jq for faster runs)${NC}"
     else
         fail "Neither jq nor python3 is available"
         echo ""
-        echo "    Install jq:"
+        echo -e "    ${BOLD}Install jq (recommended):${NC}"
+        echo ""
         echo "      macOS:       brew install jq"
         echo "      Fedora/RHEL: dnf install jq"
         echo "      Ubuntu:      apt install jq"
+        echo ""
+        echo -e "    ${DIM}Alternatively, install Python 3 and the script will use that instead.${NC}"
         echo ""
         preflight_passed=false
     fi
 }
 
 detect_environment() {
-    header "Detecting your environment"
+    phase_header "$CURRENT_STEP" "$TOTAL_STEPS" "Detecting your environment"
+    CURRENT_STEP=$((CURRENT_STEP + 1))
 
     DETECTED_TOOLS=()
 
@@ -406,8 +456,8 @@ list_servers() {
     init_server_registry
 
     echo ""
-    echo -e "${BOLD}Available MCP Servers${NC}"
-    echo ""
+    echo -e "  ${BOLD}Available MCP Servers${NC}"
+    divider
 
     local current_cat=""
     for key in "${ALL_SERVER_KEYS[@]}"; do
@@ -428,14 +478,14 @@ list_servers() {
                 *)              cat_label="$cat" ;;
             esac
             echo ""
-            echo -e "  ${BOLD}${cat_label}${NC}"
+            echo -e "    ${BOLD}${cat_label}${NC}"
         fi
 
         local env_note=""
         if [[ -n "${SERVER_ENV[$key]}" ]]; then
             env_note=" ${DIM}(requires API key)${NC}"
         fi
-        echo -e "    ${GREEN}${SERVER_NAMES[$key]}${NC} - ${SERVER_DESCS[$key]}${env_note}"
+        echo -e "      ${DIAMOND} ${GREEN}${SERVER_NAMES[$key]}${NC}  ${SERVER_DESCS[$key]}${env_note}"
     done
     echo ""
 }
@@ -453,7 +503,7 @@ backup_settings() {
     mkdir -p "$BACKUP_DIR"
     if [[ -f "$SETTINGS_FILE" ]]; then
         cp "$SETTINGS_FILE" "$BACKUP_FILE"
-        info "Settings backed up to $BACKUP_FILE"
+        info "Settings backed up to ${DIM}$BACKUP_FILE${NC}"
     fi
 }
 
@@ -539,11 +589,15 @@ PYEOF
 
 install_single_server() {
     local key="$1"
+    local server_num="$2"
+    local server_total="$3"
     local package="${SERVER_PACKAGES[$key]}"
     local extra_args="${SERVER_ARGS[$key]}"
     local env_vars="${SERVER_ENV[$key]}"
 
-    working "Installing ${SERVER_NAMES[$key]}..."
+    echo ""
+    echo -e "  ${WORKING}  ${BOLD}[${server_num}/${server_total}]${NC} Installing ${BOLD}${SERVER_NAMES[$key]}${NC}..."
+    echo -e "     ${DIM}Package: ${package}${NC}"
 
     # Check if already configured
     local already_exists=false
@@ -555,18 +609,23 @@ install_single_server() {
     done
 
     if $already_exists; then
-        note "${SERVER_NAMES[$key]} is already configured (updating)"
+        echo -e "     ${DIM}Already configured, updating to latest${NC}"
     fi
 
     # Write the config
     merge_mcp_server "$key" "$package" "$extra_args" "$env_vars"
 
-    # Validate: check that the npm package exists
-    if npm view "$package" version &>/dev/null 2>&1; then
-        info "${SERVER_NAMES[$key]} configured and package verified"
+    # Validate: check that the npm package exists and get its version
+    local pkg_version
+    pkg_version=$(npm view "$package" version 2>/dev/null || echo "")
+
+    if [[ -n "$pkg_version" ]]; then
+        info "${SERVER_NAMES[$key]} configured ${DIM}(v${pkg_version} verified)${NC}"
         return 0
     else
-        warn "${SERVER_NAMES[$key]} configured but package could not be verified (may need internet)"
+        warn "${SERVER_NAMES[$key]} configured, but package verification failed"
+        echo -e "     ${DIM}Possible causes: no internet connection, or the package name changed.${NC}"
+        echo -e "     ${DIM}To check manually:  npm view ${package} version${NC}"
         return 0
     fi
 }
@@ -576,28 +635,37 @@ install_single_server() {
 # -------------------------------------------------------------------
 
 interactive_select() {
+    phase_header "$CURRENT_STEP" "$TOTAL_STEPS" "Choose your setup"
+    CURRENT_STEP=$((CURRENT_STEP + 1))
+
     echo ""
-    echo -e "${BOLD}How do you want to set up your MCP servers?${NC}"
+    echo -e "  Pick a bundle that matches your workflow, or build your own."
     echo ""
-    echo -e "  ${BOLD}1)${NC} ${GREEN}Quick Start${NC} - Core servers everyone should have"
-    echo -e "     ${DIM}GitHub, Fetch, Filesystem, Memory${NC}"
+    echo -e "    ${BOLD}1)${NC}  ${GREEN}Quick Start${NC}"
+    echo -e "        ${DIM}GitHub, Fetch, Filesystem, Memory${NC}"
+    echo -e "        ${DIM}The essentials for most developers.${NC}"
     echo ""
-    echo -e "  ${BOLD}2)${NC} ${GREEN}Full Stack Developer${NC} - Everything for web and backend work"
-    echo -e "     ${DIM}Core + Brave Search, Context7, Sequential Thinking, Puppeteer${NC}"
+    echo -e "    ${BOLD}2)${NC}  ${GREEN}Full Stack Developer${NC}"
+    echo -e "        ${DIM}Core + Brave Search, Context7, Sequential Thinking, Puppeteer${NC}"
+    echo -e "        ${DIM}Web search, docs lookup, browser testing, and structured reasoning.${NC}"
     echo ""
-    echo -e "  ${BOLD}3)${NC} ${GREEN}Data and Backend${NC} - Database-heavy workflows"
-    echo -e "     ${DIM}Core + Postgres, SQLite, Sequential Thinking${NC}"
+    echo -e "    ${BOLD}3)${NC}  ${GREEN}Data and Backend${NC}"
+    echo -e "        ${DIM}Core + Postgres, SQLite, Sequential Thinking${NC}"
+    echo -e "        ${DIM}Query databases and reason through complex data problems.${NC}"
     echo ""
-    echo -e "  ${BOLD}4)${NC} ${GREEN}AI/ML Engineer${NC} - Research and reasoning focused"
-    echo -e "     ${DIM}Core + Brave Search, Context7, Sequential Thinking, EverArt${NC}"
+    echo -e "    ${BOLD}4)${NC}  ${GREEN}AI/ML Engineer${NC}"
+    echo -e "        ${DIM}Core + Brave Search, Context7, Sequential Thinking, EverArt${NC}"
+    echo -e "        ${DIM}Research papers, latest docs, image generation, deep reasoning.${NC}"
     echo ""
-    echo -e "  ${BOLD}5)${NC} ${GREEN}Everything${NC} - Install all available servers"
+    echo -e "    ${BOLD}5)${NC}  ${GREEN}Everything${NC}"
+    echo -e "        ${DIM}Install all ${#ALL_SERVER_KEYS[@]} available servers${NC}"
     echo ""
-    echo -e "  ${BOLD}6)${NC} ${GREEN}Custom${NC} - Pick exactly which servers you want"
+    echo -e "    ${BOLD}6)${NC}  ${GREEN}Custom${NC}"
+    echo -e "        ${DIM}Pick exactly which servers you want from the full list${NC}"
     echo ""
 
     local choice
-    read -rp "Choose a setup (1-6): " choice
+    read -rp "  Choose a setup (1-6): " choice
 
     case "$choice" in
         1)
@@ -649,7 +717,7 @@ interactive_select() {
 
 custom_select() {
     echo ""
-    echo -e "${BOLD}Available servers:${NC}"
+    echo -e "  ${BOLD}Available servers:${NC}"
     echo ""
 
     local i=1
@@ -658,15 +726,15 @@ custom_select() {
         if [[ -n "${SERVER_ENV[$key]}" ]]; then
             env_note=" ${DIM}(API key required)${NC}"
         fi
-        printf "  ${BOLD}%2d)${NC} %-22s %s%b\n" "$i" "${SERVER_NAMES[$key]}" "${SERVER_DESCS[$key]}" "$env_note"
+        printf "    ${BOLD}%2d)${NC}  %-22s %s%b\n" "$i" "${SERVER_NAMES[$key]}" "${SERVER_DESCS[$key]}" "$env_note"
         i=$((i + 1))
     done
 
     echo ""
-    echo "Enter the numbers of servers to install (space-separated)."
-    echo "Example: 1 2 3 5 8"
+    echo -e "  Enter the numbers of servers to install, separated by spaces."
+    echo -e "  ${DIM}Example: 1 2 3 5 8${NC}"
     echo ""
-    read -rp "Your selections: " choices
+    read -rp "  Your selections: " choices
 
     if [[ -z "$choices" ]]; then
         warn "No selections made. Installing core servers."
@@ -706,12 +774,12 @@ suggest_based_on_environment() {
 
     if [[ ${#suggestions[@]} -gt 0 ]]; then
         echo ""
-        note "Based on your environment, you might also want:"
+        note "Based on what's installed on your machine, you might also want:"
         for s in "${suggestions[@]}"; do
-            echo -e "     ${GREEN}+${NC} ${SERVER_NAMES[$s]} - ${SERVER_DESCS[$s]}"
+            echo -e "       ${GREEN}+${NC} ${SERVER_NAMES[$s]}  ${DIM}${SERVER_DESCS[$s]}${NC}"
         done
         echo ""
-        read -rp "Add these servers too? (Y/n): " add_suggested
+        read -rp "  Add these servers too? (Y/n): " add_suggested
         if [[ "$add_suggested" != "n" && "$add_suggested" != "N" ]]; then
             for s in "${suggestions[@]}"; do
                 SERVER_SELECTED[$s]=true
@@ -728,10 +796,11 @@ suggest_based_on_environment() {
 prompt_filesystem_path() {
     if [[ "${SERVER_SELECTED[filesystem]}" == "true" ]] && ! $NONINTERACTIVE; then
         echo ""
-        echo -e "${BOLD}Filesystem server: which directory should Claude Code access?${NC}"
+        echo -e "  ${BOLD}Filesystem server: which directory should Claude Code access?${NC}"
+        echo -e "  ${DIM}This gives Claude Code read/write access to files in this folder.${NC}"
         echo -e "  ${DIM}Default: $HOME/projects${NC}"
         echo ""
-        read -rp "Path (press Enter for default): " fs_path
+        read -rp "  Path (press Enter for default): " fs_path
 
         if [[ -n "$fs_path" ]]; then
             # Expand ~ if used
@@ -741,6 +810,7 @@ prompt_filesystem_path() {
                 info "Filesystem path set to: $fs_path"
             else
                 warn "Directory $fs_path does not exist. Using default ($HOME/projects)."
+                echo -e "     ${DIM}You can change this later in ~/.claude/settings.json${NC}"
                 mkdir -p "$HOME/projects" 2>/dev/null || true
             fi
         else
@@ -756,11 +826,14 @@ prompt_filesystem_path() {
 prompt_postgres_connection() {
     if [[ "${SERVER_SELECTED[postgres]}" == "true" ]] && ! $NONINTERACTIVE; then
         echo ""
-        echo -e "${BOLD}PostgreSQL: enter your connection string${NC}"
+        echo -e "  ${BOLD}PostgreSQL: enter your connection string${NC}"
         echo -e "  ${DIM}Format: postgresql://user:password@host:port/database${NC}"
         echo -e "  ${DIM}Default: postgresql://localhost:5432/mydb${NC}"
         echo ""
-        read -rp "Connection string (press Enter for default): " pg_conn
+        echo -e "  ${DIM}Tip: if you're using a local Postgres with default settings,${NC}"
+        echo -e "  ${DIM}just press Enter and update the database name later.${NC}"
+        echo ""
+        read -rp "  Connection string (press Enter for default): " pg_conn
 
         if [[ -n "$pg_conn" ]]; then
             SERVER_ARGS[postgres]="$pg_conn"
@@ -776,10 +849,13 @@ prompt_postgres_connection() {
 prompt_sqlite_path() {
     if [[ "${SERVER_SELECTED[sqlite]}" == "true" ]] && ! $NONINTERACTIVE; then
         echo ""
-        echo -e "${BOLD}SQLite: enter the path to your database file${NC}"
+        echo -e "  ${BOLD}SQLite: enter the path to your database file${NC}"
         echo -e "  ${DIM}Default: $HOME/data/my-database.db${NC}"
         echo ""
-        read -rp "Database path (press Enter for default): " sqlite_path
+        echo -e "  ${DIM}Tip: you can point this at any .db or .sqlite file.${NC}"
+        echo -e "  ${DIM}If the file doesn't exist yet, Claude Code will create it.${NC}"
+        echo ""
+        read -rp "  Database path (press Enter for default): " sqlite_path
 
         if [[ -n "$sqlite_path" ]]; then
             sqlite_path="${sqlite_path/#\~/$HOME}"
@@ -790,7 +866,7 @@ prompt_sqlite_path() {
 }
 
 # -------------------------------------------------------------------
-# API key prompts
+# API key prompts (with detailed guidance)
 # -------------------------------------------------------------------
 
 prompt_api_keys() {
@@ -810,50 +886,148 @@ prompt_api_keys() {
     fi
 
     if [[ ${#keys_needed[@]} -gt 0 ]] && ! $NONINTERACTIVE; then
+        phase_header "$CURRENT_STEP" "$TOTAL_STEPS" "API Keys"
+        CURRENT_STEP=$((CURRENT_STEP + 1))
+
         echo ""
-        header "API Keys"
-        echo ""
-        echo "Some selected servers need API keys. You can enter them now"
-        echo "or add them later to ~/.claude/settings.json."
-        echo ""
+        echo -e "  Some of the servers you selected need API keys to work."
+        echo -e "  You can enter them now or add them later to ~/.claude/settings.json."
+        echo -e "  ${DIM}Press Enter on any prompt to skip it for now.${NC}"
 
         for key_server in "${keys_needed[@]}"; do
+            echo ""
+            divider
             case "$key_server" in
                 brave-search)
-                    echo -e "  ${BOLD}Brave Search API Key${NC} (https://brave.com/search/api/)"
-                    read -rp "  BRAVE_API_KEY (press Enter to skip): " input_key
+                    echo ""
+                    echo -e "  ${BOLD}Brave Search API Key${NC}"
+                    echo ""
+                    echo -e "  ${UNDERLINE}What it unlocks:${NC} Claude Code can search the web in real time"
+                    echo -e "  to find current docs, tutorials, Stack Overflow answers, and more."
+                    echo ""
+                    echo -e "  ${UNDERLINE}Where to get it:${NC}"
+                    echo -e "    ${CYAN}https://brave.com/search/api/${NC}"
+                    echo -e "    Sign up, then copy your API key from the dashboard."
+                    echo -e "    ${DIM}The free tier gives you 2,000 searches per month.${NC}"
+                    echo ""
+                    read -rp "  BRAVE_API_KEY: " input_key
                     if [[ -n "$input_key" ]]; then
                         export BRAVE_API_KEY="$input_key"
+                        info "Brave Search API key saved"
+                    else
+                        note "Skipped (you can add it later)"
                     fi
                     ;;
                 google-maps)
-                    echo -e "  ${BOLD}Google Maps API Key${NC} (https://console.cloud.google.com/)"
-                    read -rp "  GOOGLE_MAPS_API_KEY (press Enter to skip): " input_key
+                    echo ""
+                    echo -e "  ${BOLD}Google Maps API Key${NC}"
+                    echo ""
+                    echo -e "  ${UNDERLINE}What it unlocks:${NC} Claude Code can look up addresses, get"
+                    echo -e "  directions, find nearby places, and calculate distances."
+                    echo ""
+                    echo -e "  ${UNDERLINE}Where to get it:${NC}"
+                    echo -e "    ${CYAN}https://console.cloud.google.com/apis/credentials${NC}"
+                    echo -e "    Create a project, enable the Maps JavaScript API,"
+                    echo -e "    then generate an API key under Credentials."
+                    echo -e "    ${DIM}Google gives you \$200/month in free Maps API usage.${NC}"
+                    echo ""
+                    read -rp "  GOOGLE_MAPS_API_KEY: " input_key
                     if [[ -n "$input_key" ]]; then
                         export GOOGLE_MAPS_API_KEY="$input_key"
+                        info "Google Maps API key saved"
+                    else
+                        note "Skipped (you can add it later)"
                     fi
                     ;;
                 slack)
-                    echo -e "  ${BOLD}Slack Bot Token${NC} (https://api.slack.com/apps)"
-                    read -rp "  SLACK_BOT_TOKEN (press Enter to skip): " input_key
+                    echo ""
+                    echo -e "  ${BOLD}Slack Bot Token${NC}"
+                    echo ""
+                    echo -e "  ${UNDERLINE}What it unlocks:${NC} Claude Code can read and post messages"
+                    echo -e "  in your Slack workspace channels."
+                    echo ""
+                    echo -e "  ${UNDERLINE}Where to get it:${NC}"
+                    echo -e "    ${CYAN}https://api.slack.com/apps${NC}"
+                    echo -e "    Create a new app, add Bot Token Scopes (channels:read,"
+                    echo -e "    chat:write), install to your workspace, then copy the"
+                    echo -e "    Bot User OAuth Token (starts with xoxb-)."
+                    echo ""
+                    read -rp "  SLACK_BOT_TOKEN: " input_key
                     if [[ -n "$input_key" ]]; then
                         export SLACK_BOT_TOKEN="$input_key"
+                        info "Slack bot token saved"
+                    else
+                        note "Skipped (you can add it later)"
                     fi
-                    read -rp "  SLACK_TEAM_ID (press Enter to skip): " input_key2
+                    echo ""
+                    echo -e "  ${DIM}Your Team ID is in your Slack workspace URL or under${NC}"
+                    echo -e "  ${DIM}Settings > About This Workspace.${NC}"
+                    echo ""
+                    read -rp "  SLACK_TEAM_ID: " input_key2
                     if [[ -n "$input_key2" ]]; then
                         export SLACK_TEAM_ID="$input_key2"
+                        info "Slack team ID saved"
+                    else
+                        note "Skipped (you can add it later)"
                     fi
                     ;;
                 everart)
+                    echo ""
                     echo -e "  ${BOLD}EverArt API Key${NC}"
-                    read -rp "  EVERART_API_KEY (press Enter to skip): " input_key
+                    echo ""
+                    echo -e "  ${UNDERLINE}What it unlocks:${NC} Claude Code can generate images"
+                    echo -e "  and train custom AI art models on your behalf."
+                    echo ""
+                    echo -e "  ${UNDERLINE}Where to get it:${NC}"
+                    echo -e "    Check the EverArt documentation or your account dashboard"
+                    echo -e "    for API access details."
+                    echo ""
+                    read -rp "  EVERART_API_KEY: " input_key
                     if [[ -n "$input_key" ]]; then
                         export EVERART_API_KEY="$input_key"
+                        info "EverArt API key saved"
+                    else
+                        note "Skipped (you can add it later)"
                     fi
                     ;;
             esac
-            echo ""
         done
+    fi
+}
+
+# -------------------------------------------------------------------
+# GitHub token prompt
+# -------------------------------------------------------------------
+
+prompt_github_token() {
+    if [[ "${SERVER_SELECTED[github]}" == "true" ]] && [[ -z "${GITHUB_PERSONAL_ACCESS_TOKEN:-}" ]] && ! $NONINTERACTIVE; then
+        echo ""
+        divider
+        echo ""
+        echo -e "  ${BOLD}GitHub Personal Access Token${NC} ${DIM}(optional but recommended)${NC}"
+        echo ""
+        echo -e "  ${UNDERLINE}What it unlocks:${NC} Access to your private repos, higher rate limits"
+        echo -e "  (5,000 requests/hour instead of 60), and the ability to create"
+        echo -e "  issues and pull requests."
+        echo ""
+        echo -e "  ${UNDERLINE}Where to get it:${NC}"
+        echo -e "    ${CYAN}https://github.com/settings/tokens/new${NC}"
+        echo -e "    Select the ${BOLD}repo${NC} scope for private repo access."
+        echo -e "    ${DIM}Without a token, you can still use public repos but will${NC}"
+        echo -e "    ${DIM}hit rate limits after 60 requests per hour.${NC}"
+        echo ""
+        read -rp "  GITHUB_PERSONAL_ACCESS_TOKEN (press Enter to skip): " gh_token
+        if [[ -n "$gh_token" ]]; then
+            export GITHUB_PERSONAL_ACCESS_TOKEN="$gh_token"
+            info "GitHub token saved"
+
+            # Inject the env var into the github server config
+            if [[ -z "${SERVER_ENV[github]}" ]]; then
+                SERVER_ENV[github]="GITHUB_PERSONAL_ACCESS_TOKEN"
+            fi
+        else
+            note "Skipped (public repos will still work)"
+        fi
     fi
 }
 
@@ -863,35 +1037,75 @@ prompt_api_keys() {
 
 rollback() {
     echo ""
-    fail "Installation failed. Rolling back to previous settings."
+    fail "Installation failed unexpectedly."
+    echo ""
     if [[ -f "$BACKUP_FILE" ]]; then
+        echo -e "  ${DIM}Rolling back to your previous settings...${NC}"
         cp "$BACKUP_FILE" "$SETTINGS_FILE"
         info "Settings restored from backup"
+        echo ""
+        echo -e "  ${DIM}Your Claude Code configuration is back to where it was before${NC}"
+        echo -e "  ${DIM}this script ran. Nothing has changed.${NC}"
+    else
+        echo -e "  ${DIM}No backup was created yet, so your settings are unchanged.${NC}"
     fi
+    echo ""
+    echo -e "  ${BOLD}What to do next:${NC}"
+    echo -e "    1. Check the error message above"
+    echo -e "    2. Make sure you have internet access"
+    echo -e "    3. Try running the script again: ./setup.sh"
+    echo ""
     exit 1
 }
 
 # -------------------------------------------------------------------
-# Post-install summary
+# Post-install health dashboard
 # -------------------------------------------------------------------
 
-show_summary() {
+show_health_dashboard() {
     local installed=("$@")
 
     echo ""
-    echo -e "${BOLD}${GREEN}============================================${NC}"
-    echo -e "${BOLD}${GREEN}  Setup Complete                            ${NC}"
-    echo -e "${BOLD}${GREEN}============================================${NC}"
+    echo ""
+    echo -e "  ${BOLD}${GREEN}┌──────────────────────────────────────────────────────────┐${NC}"
+    echo -e "  ${BOLD}${GREEN}│                                                          │${NC}"
+    echo -e "  ${BOLD}${GREEN}│              Setup Complete. You're all set.              │${NC}"
+    echo -e "  ${BOLD}${GREEN}│                                                          │${NC}"
+    echo -e "  ${BOLD}${GREEN}└──────────────────────────────────────────────────────────┘${NC}"
+
+    # Health check table
+    echo ""
+    echo -e "  ${BOLD}Server Health${NC}"
+    divider
     echo ""
 
-    echo -e "${BOLD}Installed servers (${#installed[@]}):${NC}"
+    local all_healthy=true
     for key in "${installed[@]}"; do
-        echo -e "  ${GREEN}+${NC} ${SERVER_NAMES[$key]} - ${SERVER_DESCS[$key]}"
+        local status_icon="${CHECKMARK}"
+        local status_text="${GREEN}ready${NC}"
+        local env="${SERVER_ENV[$key]}"
+
+        # Check if API keys are still placeholders
+        if [[ -n "$env" ]]; then
+            IFS=',' read -ra vars <<< "$env"
+            for var in "${vars[@]}"; do
+                local val="${!var:-}"
+                if [[ -z "$val" || "$val" == *"<your-"* ]]; then
+                    status_icon="${WARN}"
+                    status_text="${YELLOW}needs API key${NC}"
+                    all_healthy=false
+                    break
+                fi
+            done
+        fi
+
+        printf "    %b  %-24s %b\n" "$status_icon" "${SERVER_NAMES[$key]}" "$status_text"
     done
 
-    # Check for servers that need API keys
-    local needs_keys=false
     echo ""
+
+    # Action items for missing API keys
+    local needs_keys=false
     for key in "${installed[@]}"; do
         local env="${SERVER_ENV[$key]}"
         if [[ -n "$env" ]]; then
@@ -900,65 +1114,109 @@ show_summary() {
                 local val="${!var:-}"
                 if [[ -z "$val" || "$val" == *"<your-"* ]]; then
                     if ! $needs_keys; then
-                        echo -e "${YELLOW}${BOLD}Action required - API keys:${NC}"
+                        echo -e "  ${BOLD}${YELLOW}Action needed: add API keys${NC}"
+                        divider
+                        echo ""
                         needs_keys=true
                     fi
                     case "$var" in
                         BRAVE_API_KEY)
-                            echo -e "  ${YELLOW}*${NC} BRAVE_API_KEY: https://brave.com/search/api/"
+                            echo -e "    ${WARN}  BRAVE_API_KEY"
+                            echo -e "       Get one at: ${CYAN}https://brave.com/search/api/${NC}"
+                            echo -e "       ${DIM}Free tier: 2,000 searches/month${NC}"
                             ;;
                         GOOGLE_MAPS_API_KEY)
-                            echo -e "  ${YELLOW}*${NC} GOOGLE_MAPS_API_KEY: https://console.cloud.google.com/"
+                            echo -e "    ${WARN}  GOOGLE_MAPS_API_KEY"
+                            echo -e "       Get one at: ${CYAN}https://console.cloud.google.com/apis/credentials${NC}"
+                            echo -e "       ${DIM}Free tier: \$200/month in usage${NC}"
                             ;;
                         SLACK_BOT_TOKEN)
-                            echo -e "  ${YELLOW}*${NC} SLACK_BOT_TOKEN: https://api.slack.com/apps"
+                            echo -e "    ${WARN}  SLACK_BOT_TOKEN"
+                            echo -e "       Get one at: ${CYAN}https://api.slack.com/apps${NC}"
                             ;;
                         SLACK_TEAM_ID)
-                            echo -e "  ${YELLOW}*${NC} SLACK_TEAM_ID: check your Slack workspace settings"
+                            echo -e "    ${WARN}  SLACK_TEAM_ID"
+                            echo -e "       ${DIM}Found in Slack workspace settings${NC}"
                             ;;
                         EVERART_API_KEY)
-                            echo -e "  ${YELLOW}*${NC} EVERART_API_KEY: check EverArt documentation"
+                            echo -e "    ${WARN}  EVERART_API_KEY"
+                            echo -e "       ${DIM}Check your EverArt account dashboard${NC}"
+                            ;;
+                        GITHUB_PERSONAL_ACCESS_TOKEN)
+                            echo -e "    ${WARN}  GITHUB_PERSONAL_ACCESS_TOKEN"
+                            echo -e "       Get one at: ${CYAN}https://github.com/settings/tokens/new${NC}"
+                            echo -e "       ${DIM}Select the 'repo' scope for private repos${NC}"
                             ;;
                     esac
+                    echo ""
                 fi
             done
         fi
     done
     if $needs_keys; then
+        echo -e "  ${DIM}Add keys to ~/.claude/settings.json in each server's \"env\" block,${NC}"
+        echo -e "  ${DIM}or export them as environment variables before starting Claude Code.${NC}"
         echo ""
-        echo "  Add keys to ~/.claude/settings.json in the server's \"env\" block,"
-        echo "  or export them as environment variables before starting Claude Code."
     fi
 
+    # What to try first
+    echo -e "  ${BOLD}What to try first${NC}"
+    divider
     echo ""
-    echo -e "${BOLD}Next steps:${NC}"
-    echo ""
-    echo "  1. Verify your setup:"
-    echo "     ./verify.sh"
-    echo ""
-    echo "  2. Open Claude Code and try a prompt:"
+    echo -e "  Open Claude Code and paste any of these prompts:"
     echo ""
 
-    # Show a relevant example prompt
     if [[ " ${installed[*]} " == *" github "* ]]; then
-        echo "     \"List the open issues in MarkellR-RedHat/ai-bu-mcp-server-kit\""
+        echo -e "    ${DIAMOND}  ${WHITE}\"List the open issues in my-org/my-repo\"${NC}"
     fi
     if [[ " ${installed[*]} " == *" fetch "* ]]; then
-        echo "     \"Fetch https://httpbin.org/get and show me the response\""
+        echo -e "    ${DIAMOND}  ${WHITE}\"Fetch https://httpbin.org/get and show me the response\"${NC}"
     fi
     if [[ " ${installed[*]} " == *" brave-search "* ]]; then
-        echo "     \"Search the web for 'MCP servers for Claude Code'\""
+        echo -e "    ${DIAMOND}  ${WHITE}\"Search the web for 'best practices for Python logging'\"${NC}"
     fi
     if [[ " ${installed[*]} " == *" memory "* ]]; then
-        echo "     \"Remember that my preferred language is Python\""
+        echo -e "    ${DIAMOND}  ${WHITE}\"Remember that my preferred language is Python\"${NC}"
     fi
     if [[ " ${installed[*]} " == *" context7 "* ]]; then
-        echo "     \"Use context7 to get the latest docs for FastAPI\""
+        echo -e "    ${DIAMOND}  ${WHITE}\"Use context7 to get the latest docs for FastAPI\"${NC}"
+    fi
+    if [[ " ${installed[*]} " == *" filesystem "* ]]; then
+        echo -e "    ${DIAMOND}  ${WHITE}\"List the files in my projects directory\"${NC}"
+    fi
+    if [[ " ${installed[*]} " == *" sequential-thinking "* ]]; then
+        echo -e "    ${DIAMOND}  ${WHITE}\"Think step by step about how to design a REST API for a todo app\"${NC}"
+    fi
+    if [[ " ${installed[*]} " == *" puppeteer "* ]]; then
+        echo -e "    ${DIAMOND}  ${WHITE}\"Take a screenshot of https://example.com\"${NC}"
+    fi
+    if [[ " ${installed[*]} " == *" postgres "* ]]; then
+        echo -e "    ${DIAMOND}  ${WHITE}\"Show me the tables in my PostgreSQL database\"${NC}"
+    fi
+    if [[ " ${installed[*]} " == *" sqlite "* ]]; then
+        echo -e "    ${DIAMOND}  ${WHITE}\"Show me the schema of my SQLite database\"${NC}"
+    fi
+    if [[ " ${installed[*]} " == *" slack "* ]]; then
+        echo -e "    ${DIAMOND}  ${WHITE}\"List the recent messages in #general on Slack\"${NC}"
     fi
 
+    echo ""
+
+    # Verification and file locations
+    echo -e "  ${BOLD}Verify your setup${NC}"
+    divider
+    echo ""
+    if [[ -f "$SCRIPT_DIR/verify.sh" ]]; then
+        echo -e "    Run the verification script to confirm everything works:"
+        echo -e "    ${CYAN}./verify.sh${NC}"
+    else
+        echo -e "    Restart Claude Code to load the new servers."
+        echo -e "    Each server will connect automatically when you use it."
+    fi
     echo ""
     echo -e "  ${DIM}Settings file: $SETTINGS_FILE${NC}"
     echo -e "  ${DIM}Backup file:   $BACKUP_FILE${NC}"
+    echo -e "  ${DIM}To undo:       ./setup.sh --restore${NC}"
     echo ""
 }
 
@@ -967,21 +1225,45 @@ show_summary() {
 # -------------------------------------------------------------------
 
 main() {
+    # Banner
     echo ""
-    echo -e "${BOLD}${CYAN}============================================${NC}"
-    echo -e "${BOLD}${CYAN}  MCP Server Kit for Claude Code            ${NC}"
-    echo -e "${BOLD}${CYAN}============================================${NC}"
+    echo ""
+    echo -e "  ${BOLD}${CYAN}┌──────────────────────────────────────────────────────────┐${NC}"
+    echo -e "  ${BOLD}${CYAN}│                                                          │${NC}"
+    echo -e "  ${BOLD}${CYAN}│           MCP Server Kit for Claude Code                 │${NC}"
+    echo -e "  ${BOLD}${CYAN}│                                                          │${NC}"
+    echo -e "  ${BOLD}${CYAN}│     Give Claude Code superpowers with MCP servers.        │${NC}"
+    echo -e "  ${BOLD}${CYAN}│                                                          │${NC}"
+    echo -e "  ${BOLD}${CYAN}└──────────────────────────────────────────────────────────┘${NC}"
+    echo ""
+    echo -e "  After setup, Claude Code will be able to:"
+    echo ""
+    echo -e "    ${DIAMOND}  Search your GitHub repos, issues, and pull requests"
+    echo -e "    ${DIAMOND}  Fetch and read any web page, API, or documentation"
+    echo -e "    ${DIAMOND}  Read and write files on your local machine"
+    echo -e "    ${DIAMOND}  Search the web for up-to-date answers"
+    echo -e "    ${DIAMOND}  Query your databases and remember your preferences"
     echo ""
 
-    # Preflight
-    header "Preflight checks"
+    # Calculate total steps based on mode
+    TOTAL_STEPS=5
+    CURRENT_STEP=1
+
+    # Step 1: Preflight
+    phase_header "$CURRENT_STEP" "$TOTAL_STEPS" "Checking prerequisites"
+    CURRENT_STEP=$((CURRENT_STEP + 1))
+
     check_claude_code
     check_npx
     check_json_tool
 
     if ! $preflight_passed; then
         echo ""
-        fail "Preflight checks failed. Fix the issues above and try again."
+        fail "Some prerequisites are missing. Fix the issues above and try again."
+        echo ""
+        echo -e "  ${DIM}The items marked with ${CROSS} need to be installed before this${NC}"
+        echo -e "  ${DIM}script can configure your MCP servers.${NC}"
+        echo ""
         exit 1
     fi
 
@@ -989,27 +1271,31 @@ main() {
     mkdir -p "$SETTINGS_DIR"
     if [[ ! -f "$SETTINGS_FILE" ]]; then
         echo '{}' > "$SETTINGS_FILE"
-        info "Created new settings file at $SETTINGS_FILE"
+        info "Created new settings file at ${DIM}$SETTINGS_FILE${NC}"
     fi
 
-    # Detect environment and existing config
+    # Step 2: Detect environment and existing config
     detect_environment
     check_existing_servers
 
     # Initialize server registry
     init_server_registry
 
-    # Determine what to install
+    # Step 3: Determine what to install
     if $INSTALL_ALL; then
         for key in "${ALL_SERVER_KEYS[@]}"; do
             SERVER_SELECTED[$key]=true
         done
-        note "Installing all servers (--all)"
+        phase_header "$CURRENT_STEP" "$TOTAL_STEPS" "Server selection"
+        CURRENT_STEP=$((CURRENT_STEP + 1))
+        note "Installing all ${#ALL_SERVER_KEYS[@]} servers (--all flag)"
     elif $INSTALL_MINIMAL; then
         for key in github fetch filesystem; do
             SERVER_SELECTED[$key]=true
         done
-        note "Installing minimal set (--minimal)"
+        phase_header "$CURRENT_STEP" "$TOTAL_STEPS" "Server selection"
+        CURRENT_STEP=$((CURRENT_STEP + 1))
+        note "Installing minimal set (--minimal flag): GitHub, Fetch, Filesystem"
     else
         interactive_select
     fi
@@ -1025,28 +1311,40 @@ main() {
     if [[ $selected_count -eq 0 ]]; then
         echo ""
         warn "No servers selected. Nothing to install."
+        echo ""
+        echo -e "  ${DIM}Run ./setup.sh again to pick some servers, or try:${NC}"
+        echo -e "  ${DIM}  ./setup.sh --minimal   (installs the basics)${NC}"
+        echo ""
         exit 0
     fi
 
-    # Prompt for paths and connection strings
+    # Prompt for paths, connection strings, and API keys
     prompt_filesystem_path
     prompt_postgres_connection
     prompt_sqlite_path
+
+    # Step 4 (conditional): API keys
+    prompt_github_token
     prompt_api_keys
 
     # Confirmation
     if ! $NONINTERACTIVE; then
         echo ""
-        echo -e "${BOLD}Ready to install $selected_count server(s):${NC}"
+        divider
+        echo ""
+        echo -e "  ${BOLD}Ready to install ${selected_count} server(s):${NC}"
+        echo ""
         for key in "${ALL_SERVER_KEYS[@]}"; do
             if [[ "${SERVER_SELECTED[$key]}" == "true" ]]; then
-                echo -e "  ${GREEN}+${NC} ${SERVER_NAMES[$key]}"
+                echo -e "    ${GREEN}+${NC}  ${SERVER_NAMES[$key]}"
             fi
         done
         echo ""
-        read -rp "Proceed? (Y/n): " confirm
+        read -rp "  Proceed? (Y/n): " confirm
         if [[ "$confirm" == "n" || "$confirm" == "N" ]]; then
-            echo "Cancelled."
+            echo ""
+            echo "  Cancelled. No changes were made."
+            echo ""
             exit 0
         fi
     fi
@@ -1057,19 +1355,24 @@ main() {
     # Set trap for rollback on failure
     trap rollback ERR
 
-    # Install
-    header "Installing MCP servers"
-    echo ""
+    # Step 5: Install
+    phase_header "$CURRENT_STEP" "$TOTAL_STEPS" "Installing and verifying servers"
+    CURRENT_STEP=$((CURRENT_STEP + 1))
 
     local installed=()
     local install_failed=false
+    local server_num=0
 
     for key in "${ALL_SERVER_KEYS[@]}"; do
         if [[ "${SERVER_SELECTED[$key]}" == "true" ]]; then
-            if install_single_server "$key"; then
+            server_num=$((server_num + 1))
+            if install_single_server "$key" "$server_num" "$selected_count"; then
                 installed+=("$key")
             else
                 fail "Failed to install ${SERVER_NAMES[$key]}"
+                echo -e "     ${DIM}The server configuration was written but the package could not${NC}"
+                echo -e "     ${DIM}be verified. Check your internet connection and try:${NC}"
+                echo -e "     ${DIM}  npm view ${SERVER_PACKAGES[$key]} version${NC}"
                 install_failed=true
             fi
         fi
@@ -1079,15 +1382,25 @@ main() {
     trap - ERR
 
     if $install_failed; then
-        warn "Some servers failed to install. Check the output above."
+        echo ""
+        warn "Some servers had issues during verification. Check the output above."
+        echo -e "     ${DIM}The configurations were still written. These servers may work${NC}"
+        echo -e "     ${DIM}fine once you have internet access or restart Claude Code.${NC}"
     fi
 
     if [[ ${#installed[@]} -eq 0 ]]; then
+        echo ""
         fail "No servers were installed successfully."
+        echo ""
+        echo -e "  ${BOLD}What to try:${NC}"
+        echo -e "    1. Check your internet connection"
+        echo -e "    2. Make sure npm is working:  npm view @anthropic-ai/mcp-fetch version"
+        echo -e "    3. Run the script again:  ./setup.sh"
+        echo ""
         exit 1
     fi
 
-    show_summary "${installed[@]}"
+    show_health_dashboard "${installed[@]}"
 }
 
 main "$@"

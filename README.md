@@ -1,8 +1,17 @@
 # MCP Server Kit for Claude Code
 
-The fastest way to go from a bare Claude Code install to a fully loaded development environment. This kit configures [MCP (Model Context Protocol)](https://modelcontextprotocol.io/) servers that give Claude Code the ability to search the web, query databases, read files, interact with GitHub, and more.
+Claude Code is powerful on its own. With MCP servers, it can search your GitHub repos, fetch web pages, read your local files, and query your databases. Setup takes 3 minutes.
 
-**Setup time: under 2 minutes.**
+## What You Unlock
+
+| Without MCP servers | With MCP servers |
+|---|---|
+| Edit local files and run terminal commands | Everything on the left, plus... |
+| Ask questions from Claude's training data | Search the live web and pull current documentation |
+| Manually paste in file contents or URLs | Fetch any URL, API response, or web page directly |
+| Copy-paste GitHub issues into your prompt | Query repos, PRs, issues, and commit history in conversation |
+| No database access | Query PostgreSQL and SQLite databases directly |
+| Context resets every session | Persistent memory across sessions |
 
 ## Quick Start
 
@@ -13,12 +22,7 @@ chmod +x setup.sh verify.sh uninstall.sh
 ./setup.sh
 ```
 
-The setup wizard will:
-1. Check that Claude Code, Node.js, and a JSON tool are installed
-2. Detect your development environment (languages, tools, databases)
-3. Recommend a server bundle based on your workflow
-4. Back up your existing settings before making any changes
-5. Validate each server and report the results
+The setup wizard handles everything. It checks your system, recommends the right servers for your workflow, and verifies each one works.
 
 Want to skip the wizard? Install everything in one shot:
 
@@ -32,15 +36,61 @@ Or install just the essentials:
 ./setup.sh --minimal
 ```
 
+## Try It Out
+
+After setup, restart Claude Code and try these prompts:
+
+**GitHub:**
+```
+List the open issues in MarkellR-RedHat/ai-bu-mcp-server-kit
+```
+
+**Fetch:**
+```
+Fetch https://httpbin.org/get and show me the response headers
+```
+
+**Filesystem:**
+```
+List the files in my projects directory and summarize what each project does
+```
+
+**Memory:**
+```
+Remember that my preferred programming language is Python and I work on RHEL
+```
+
+**Brave Search:**
+```
+Search the web for "latest Claude Code features" and summarize what you find
+```
+
+**Sequential Thinking:**
+```
+Use sequential thinking to design a migration strategy for moving from monolith to microservices
+```
+
+**Context7:**
+```
+Use context7 to get the latest docs for FastAPI and show me how to add middleware
+```
+
+**PostgreSQL:**
+```
+Connect to my database and show me the schema for the users table
+```
+
+If Claude Code responds with actual data instead of an error, your MCP servers are working.
+
 ## What is MCP?
 
-Model Context Protocol is an open standard that connects AI assistants to external tools and data sources. When you add an MCP server to Claude Code, it gains the ability to interact with that service directly during your conversations. Think of MCP servers as plugins that extend what Claude Code can do.
-
-Without MCP servers, Claude Code works with your local files and terminal. With them, it can search the web, query your databases, interact with GitHub, generate images, and remember context across sessions.
+MCP servers are plugins that give Claude Code new abilities. Without them, Claude works with your local files and terminal. With them, it can search the web, query databases, interact with GitHub, and remember things across sessions. [MCP (Model Context Protocol)](https://modelcontextprotocol.io/) is the open standard that makes this possible.
 
 ## Available Servers
 
-### Core (recommended for everyone)
+### Start with these three
+
+These are the servers that 90% of users want. The `--minimal` flag installs exactly these.
 
 | Server | Package | What It Does |
 |--------|---------|-------------|
@@ -48,50 +98,73 @@ Without MCP servers, Claude Code works with your local files and terminal. With 
 | **Fetch** | `@anthropic-ai/mcp-fetch` | Read the contents of any URL: docs, APIs, web pages, raw data |
 | **Filesystem** | `@modelcontextprotocol/server-filesystem` | Controlled read/write/search access to local directories |
 
-### Search and Research
+### Add more when you need them
+
+<details>
+<summary><strong>Search and Research</strong></summary>
 
 | Server | Package | What It Does |
 |--------|---------|-------------|
 | **Brave Search** | `@anthropic-ai/mcp-server-brave-search` | Web search via Brave Search API (requires API key) |
 | **Context7** | `@upstash/context7-mcp` | Up-to-date library documentation pulled from source |
 
-### Memory and Reasoning
+</details>
+
+<details>
+<summary><strong>Memory and Reasoning</strong></summary>
 
 | Server | Package | What It Does |
 |--------|---------|-------------|
 | **Memory** | `@modelcontextprotocol/server-memory` | Persistent key-value storage across Claude Code sessions |
 | **Sequential Thinking** | `@modelcontextprotocol/server-sequential-thinking` | Structured step-by-step reasoning for complex problems |
 
-### Database
+</details>
+
+<details>
+<summary><strong>Database</strong></summary>
 
 | Server | Package | What It Does |
 |--------|---------|-------------|
 | **PostgreSQL** | `@modelcontextprotocol/server-postgres` | Query and inspect PostgreSQL databases |
 | **SQLite** | `@modelcontextprotocol/server-sqlite` | Query and inspect SQLite database files |
 
-### Browser and Automation
+</details>
+
+<details>
+<summary><strong>Browser and Automation</strong></summary>
 
 | Server | Package | What It Does |
 |--------|---------|-------------|
 | **Puppeteer** | `@modelcontextprotocol/server-puppeteer` | Browser automation: screenshots, clicks, form fills, navigation |
 
-### Communication
+</details>
+
+<details>
+<summary><strong>Communication</strong></summary>
 
 | Server | Package | What It Does |
 |--------|---------|-------------|
 | **Slack** | `@modelcontextprotocol/server-slack` | Read and post messages in Slack channels (requires bot token) |
 
-### Location
+</details>
+
+<details>
+<summary><strong>Location</strong></summary>
 
 | Server | Package | What It Does |
 |--------|---------|-------------|
 | **Google Maps** | `@modelcontextprotocol/server-google-maps` | Geocoding, directions, and place search (requires API key) |
 
-### Creative
+</details>
+
+<details>
+<summary><strong>Creative</strong></summary>
 
 | Server | Package | What It Does |
 |--------|---------|-------------|
 | **EverArt** | `@modelcontextprotocol/server-everart` | AI image generation and model training (requires API key) |
+
+</details>
 
 ## Setup Options
 
@@ -153,52 +226,6 @@ Additional options:
 ./verify.sh --quick    # Registry checks only (faster)
 ./verify.sh --json     # Machine-readable output
 ```
-
-## Try It Out
-
-Once your servers are configured, open Claude Code and try these prompts:
-
-**GitHub:**
-```
-List the open issues in MarkellR-RedHat/ai-bu-mcp-server-kit
-```
-
-**Fetch:**
-```
-Fetch https://httpbin.org/get and show me the response headers
-```
-
-**Filesystem:**
-```
-List the files in my projects directory and summarize what each project does
-```
-
-**Brave Search:**
-```
-Search the web for "latest Claude Code features" and summarize what you find
-```
-
-**Memory:**
-```
-Remember that my preferred programming language is Python and I work on RHEL
-```
-
-**Context7:**
-```
-Use context7 to get the latest docs for FastAPI and show me how to add middleware
-```
-
-**Sequential Thinking:**
-```
-Use sequential thinking to design a migration strategy for moving from monolith to microservices
-```
-
-**PostgreSQL:**
-```
-Connect to my database and show me the schema for the users table
-```
-
-If Claude Code responds with actual data instead of an error, the MCP servers are working.
 
 ## Configuration Reference
 
@@ -302,19 +329,6 @@ A backup is always created before removal. To restore:
 ./setup.sh --restore
 ```
 
-## Prerequisites
-
-| Requirement | Why | How to Install |
-|------------|-----|---------------|
-| [Claude Code](https://docs.anthropic.com/en/docs/claude-code) | The AI assistant these servers plug into | `npm install -g @anthropic-ai/claude-code` |
-| Node.js v18+ | MCP servers run via npx | `brew install node` / `dnf install nodejs` / `apt install nodejs npm` |
-| jq or python3 | JSON processing during setup | `brew install jq` / `dnf install jq` / `apt install jq` |
-
-Optional:
-- `GITHUB_PERSONAL_ACCESS_TOKEN` for private repo access and higher rate limits
-- `BRAVE_API_KEY` for web search (free tier available)
-- Database access for Postgres/SQLite servers
-
 ## Troubleshooting
 
 See [troubleshooting.md](troubleshooting.md) for the 20 most common MCP setup problems and their solutions, organized by symptom.
@@ -349,6 +363,21 @@ Install Node.js v18+:
 ### GitHub rate limiting
 
 You are hitting the unauthenticated rate limit (60 requests/hour). Set `GITHUB_PERSONAL_ACCESS_TOKEN` to raise it to 5,000 requests/hour. See [API key sources](#api-key-sources) above.
+
+## Prerequisites
+
+Most people already have what they need. Here is a quick check:
+
+| Requirement | Why | How to Install |
+|------------|-----|---------------|
+| [Claude Code](https://docs.anthropic.com/en/docs/claude-code) | The AI assistant these servers plug into | `npm install -g @anthropic-ai/claude-code` |
+| Node.js v18+ | MCP servers run via npx | `brew install node` / `dnf install nodejs` / `apt install nodejs npm` |
+| jq or python3 | JSON processing during setup | `brew install jq` / `dnf install jq` / `apt install jq` |
+
+Optional:
+- `GITHUB_PERSONAL_ACCESS_TOKEN` for private repo access and higher rate limits
+- `BRAVE_API_KEY` for web search (free tier available)
+- Database access for Postgres/SQLite servers
 
 ## Advanced Usage
 
