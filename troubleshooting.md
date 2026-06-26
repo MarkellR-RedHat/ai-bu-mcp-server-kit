@@ -47,6 +47,108 @@ If all ten pass and the problem persists, run `/feedback` inside Claude Code to 
 
 ---
 
+## Prerequisites Missing
+
+### Claude Code is not installed
+
+**What you see:** Running `claude` returns "command not found."
+
+**Fix it:**
+
+```bash
+# Install Claude Code globally via npm:
+npm install -g @anthropic-ai/claude-code
+
+# Verify the install:
+claude --version
+```
+
+If `npm` is also missing, install Node.js first (see the next section). After installing, close and reopen your terminal so the new PATH takes effect.
+
+Full installation guide: https://docs.anthropic.com/en/docs/claude-code
+
+---
+
+### npm and npx are not available
+
+**What you see:** Running `npm` or `npx` returns "command not found." Setup.sh fails at the preflight step.
+
+**Why it happens:** Node.js is not installed, or was installed in a way that didn't add its binaries to your PATH.
+
+**Fix it:**
+
+```bash
+# macOS (Homebrew):
+brew install node
+
+# Fedora / RHEL / CentOS Stream:
+dnf install nodejs
+
+# Ubuntu / Debian:
+apt install nodejs npm
+
+# nvm (any platform):
+curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.1/install.sh | bash
+nvm install 22
+```
+
+After installing, close and reopen your terminal, then verify:
+
+```bash
+node --version   # Should print v18.x or later
+npm --version    # Should print 9.x or later
+npx --version    # Should match npm version
+```
+
+If you installed via nvm and `npx` still isn't found, make sure your shell profile sources nvm:
+
+```bash
+# Check that this line exists in ~/.bashrc or ~/.zshrc:
+export NVM_DIR="$HOME/.nvm"
+[ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
+```
+
+---
+
+### Node.js is too old (below v18)
+
+**What you see:** MCP servers fail silently, crash on startup, or show errors about unsupported syntax (optional chaining, top-level await, etc.). Running `node --version` shows v14, v16, or similar.
+
+**Why it happens:** MCP server packages target Node.js v18+ and use modern JavaScript features that older runtimes do not support.
+
+**Fix it:**
+
+```bash
+# Check your current version:
+node --version
+
+# Upgrade (pick your platform):
+# macOS:
+brew install node
+
+# Fedora / RHEL:
+dnf install nodejs
+
+# Ubuntu (if the default package is old, use NodeSource):
+curl -fsSL https://deb.nodesource.com/setup_22.x | sudo -E bash -
+apt install nodejs
+
+# nvm (any platform):
+nvm install 22
+nvm use 22
+nvm alias default 22
+```
+
+After upgrading, clear the npx cache so packages rebuild against the new runtime:
+
+```bash
+npx clear-npx-cache
+```
+
+If you use absolute paths in `~/.claude/settings.json` (like `/home/user/.nvm/versions/node/v16.20.0/bin/npx`), update them to point at the new version's `npx` binary.
+
+---
+
 ## Claude Code says tools are not available
 
 ### "No MCP tools available" or tools don't appear
@@ -161,6 +263,63 @@ npm view @modelcontextprotocol/server-github version
 npx clear-npx-cache
 npx -y @modelcontextprotocol/server-github
 ```
+
+---
+
+### Conflicting MCP server configs (user-level vs project-level)
+
+**What you see:** A server behaves differently in one project than another, uses the wrong database, or shows unexpected API key errors even though your user-level settings look correct.
+
+**Why it happens:** Claude Code reads MCP configs from two places: `~/.claude/settings.json` (user-level) and `.claude/settings.json` at the repo root (project-level). When both files define a server with the same key name, the project-level entry wins completely. It does not merge fields; it replaces the entire server object.
+
+**Fix it:**
+
+```bash
+# 1. Check user-level settings:
+jq '.mcpServers | keys' ~/.claude/settings.json
+
+# 2. Check project-level settings (from your repo root):
+jq '.mcpServers | keys' .claude/settings.json 2>/dev/null || echo "No project-level config"
+
+# 3. Look for duplicate keys:
+diff <(jq -r '.mcpServers | keys[]' ~/.claude/settings.json 2>/dev/null) \
+     <(jq -r '.mcpServers | keys[]' .claude/settings.json 2>/dev/null)
+```
+
+If a project-level config overrides your user-level server but is missing your API key, add the key to the project-level `env` block, or rename one of the entries so they don't collide.
+
+Running `./setup.sh` again will overwrite user-level entries with the same name. A backup is always created first. Restore with `./setup.sh --restore` if needed.
+
+---
+
+### Server config is written but the server won't connect
+
+**What you see:** Setup.sh completed and `~/.claude/settings.json` has the server entry, but the server shows "disconnected" or "failed" in `/mcp` inside Claude Code.
+
+**Why it happens:** Writing the config is one step. The server also needs to download its npm package, resolve its dependencies, and start a working process. Network issues, stale caches, or missing runtime dependencies can block any of those.
+
+**Fix it:**
+
+```bash
+# 1. Run the full diagnostic:
+./verify.sh
+
+# 2. Try starting the server manually to see its error output:
+npx -y @modelcontextprotocol/server-github 2>&1 | head -20
+
+# 3. If it hangs or times out, clear the npx cache and retry:
+npx clear-npx-cache
+npx -y @modelcontextprotocol/server-github
+
+# 4. If the package downloads but the server immediately exits,
+#    check that Node.js is v18+:
+node --version
+
+# 5. After fixing, restart Claude Code to reload servers:
+#    Exit claude and relaunch it.
+```
+
+If the server starts fine in your terminal but fails inside Claude Code, the issue is usually PATH resolution. See the "spawn npx ENOENT" section below.
 
 ---
 

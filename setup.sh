@@ -207,6 +207,41 @@ check_claude_code() {
     fi
 }
 
+check_node_version() {
+    if command -v node &> /dev/null; then
+        local node_full
+        node_full=$(node --version 2>/dev/null || echo "unknown")
+        local node_major
+        node_major=$(echo "$node_full" | sed 's/v//' | cut -d. -f1)
+        if [[ -n "$node_major" ]] && (( node_major >= 18 )); then
+            info "Node.js $node_full ${DIM}(v18+ required)${NC}"
+        elif [[ -n "$node_major" ]]; then
+            fail "Node.js $node_full is too old (v18+ required)"
+            echo ""
+            echo -e "    ${BOLD}MCP servers need Node.js v18 or later. Upgrade:${NC}"
+            echo ""
+            echo "      macOS:       brew install node"
+            echo "      Fedora/RHEL: dnf install nodejs"
+            echo "      Ubuntu:      apt install nodejs npm"
+            echo "      nvm:         nvm install 22"
+            echo ""
+            echo -e "    ${DIM}Your current version ($node_full) may cause servers to fail silently.${NC}"
+            echo ""
+            preflight_passed=false
+        fi
+    else
+        fail "Node.js is not installed"
+        echo ""
+        echo -e "    ${BOLD}Install Node.js v18 or later:${NC}"
+        echo ""
+        echo "      macOS:       brew install node"
+        echo "      Fedora/RHEL: dnf install nodejs"
+        echo "      Ubuntu:      apt install nodejs npm"
+        echo ""
+        preflight_passed=false
+    fi
+}
+
 check_npx() {
     if command -v npx &> /dev/null; then
         info "npx available ${DIM}($(npx --version 2>/dev/null))${NC}"
@@ -247,6 +282,29 @@ check_json_tool() {
         echo -e "    ${DIM}Alternatively, install Python 3 and the script will use that instead.${NC}"
         echo ""
         preflight_passed=false
+    fi
+}
+
+check_npm_registry() {
+    if curl -s --max-time 5 https://registry.npmjs.org/ &>/dev/null; then
+        info "npm registry reachable"
+    else
+        warn "Cannot reach npm registry (https://registry.npmjs.org/)"
+        echo ""
+        echo -e "    ${BOLD}If you are behind a corporate proxy, configure npm:${NC}"
+        echo ""
+        echo "      npm config set proxy http://proxy.example.com:8080"
+        echo "      npm config set https-proxy http://proxy.example.com:8080"
+        echo ""
+        echo -e "    ${BOLD}If using a private registry:${NC}"
+        echo "      npm config set registry https://registry.internal.example.com/"
+        echo ""
+        echo -e "    ${BOLD}If using TLS inspection (corporate CA):${NC}"
+        echo "      export NODE_EXTRA_CA_CERTS=/etc/pki/tls/certs/ca-bundle.crt"
+        echo ""
+        echo -e "    ${DIM}Setup will continue, but package verification may fail.${NC}"
+        echo -e "    ${DIM}Servers will still work if the packages are already cached locally.${NC}"
+        echo ""
     fi
 }
 
@@ -317,6 +375,8 @@ for k in data.get('mcpServers', {}):
 
     if [[ ${#EXISTING_SERVERS[@]} -gt 0 ]]; then
         note "Already configured: ${EXISTING_SERVERS[*]}"
+        echo -e "     ${DIM}Re-running setup will overwrite these entries with fresh defaults.${NC}"
+        echo -e "     ${DIM}A backup is created before any changes. Restore with: ./setup.sh --restore${NC}"
     fi
 }
 
@@ -1150,6 +1210,11 @@ show_health_dashboard() {
         echo ""
     fi
 
+    # Hint for connection issues after setup
+    echo -e "  ${DIM}If a server installs but fails to connect, run ./verify.sh for diagnostics${NC}"
+    echo -e "  ${DIM}or see troubleshooting.md for common fixes.${NC}"
+    echo ""
+
     # What to try first
     echo -e "  ${BOLD}Try these in Claude Code${NC}"
     divider
@@ -1190,6 +1255,20 @@ show_health_dashboard() {
     fi
 
     echo ""
+
+    # Cross-tool integration hints
+    if [[ " ${installed[*]} " == *" github "* ]] || [[ " ${installed[*]} " == *" fetch "* ]]; then
+        echo -e "  ${BOLD}Test with other Claude Code tools${NC}"
+        divider
+        echo ""
+        if [[ " ${installed[*]} " == *" github "* ]]; then
+            echo -e "    ${DIAMOND}  Run ${CYAN}/briefing${NC} in Claude Code to test the GitHub MCP server"
+        fi
+        if [[ " ${installed[*]} " == *" fetch "* ]] && [[ " ${installed[*]} " == *" github "* ]]; then
+            echo -e "    ${DIAMOND}  Run ${CYAN}/upstream vllm${NC} in Claude Code to test fetch + GitHub servers together"
+        fi
+        echo ""
+    fi
 
     # Verification and file locations
     echo -e "  ${BOLD}Verify${NC}"
@@ -1236,8 +1315,10 @@ main() {
     CURRENT_STEP=$((CURRENT_STEP + 1))
 
     check_claude_code
+    check_node_version
     check_npx
     check_json_tool
+    check_npm_registry
 
     if ! $preflight_passed; then
         echo ""

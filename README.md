@@ -36,6 +36,44 @@ Or install just the essentials:
 ./setup.sh --minimal
 ```
 
+### Full enterprise setup
+
+For teams that want every server configured with real credentials from the start:
+
+```bash
+# 1. Export your API keys first (add these to ~/.bashrc or ~/.zshrc to persist):
+export GITHUB_PERSONAL_ACCESS_TOKEN="ghp_your_token"
+export BRAVE_API_KEY="BSA_your_key"
+export SLACK_BOT_TOKEN="xoxb-your-token"
+export SLACK_TEAM_ID="T01XXXXXX"
+export GOOGLE_MAPS_API_KEY="AIza_your_key"
+
+# 2. Install all 13 servers, no prompts:
+./setup.sh --all -y
+
+# 3. Verify everything connected:
+./verify.sh
+```
+
+After setup, customize paths and connection strings in `~/.claude/settings.json`:
+
+```json
+{
+  "mcpServers": {
+    "filesystem": {
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-filesystem", "/home/engineer/projects", "/opt/app/config"]
+    },
+    "postgres": {
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-postgres", "postgresql://dev:dev@localhost:5432/myapp?sslmode=require"]
+    }
+  }
+}
+```
+
+See [advanced-patterns.md](advanced-patterns.md) for project-level configs, multi-database setups, and team-shared configurations.
+
 ## Try It Out
 
 After setup, restart Claude Code and try these prompts:
@@ -81,6 +119,10 @@ Connect to my database and show me the schema for the users table
 ```
 
 If Claude Code responds with actual data instead of an error, your MCP servers are working.
+
+**Cross-tool checks:**
+- Run `/briefing` in Claude Code to test the GitHub MCP server end to end
+- Run `/upstream vllm` in Claude Code to test fetch + GitHub servers together
 
 ## What is MCP?
 
@@ -353,6 +395,25 @@ Install Node.js v18+:
 - macOS: `brew install node`
 - Fedora/RHEL: `dnf install nodejs`
 - Ubuntu: `apt install nodejs npm`
+
+### Node.js too old
+
+MCP servers require Node.js v18+. Check with `node --version` and upgrade if needed. After upgrading, run `npx clear-npx-cache` so packages rebuild against the new runtime.
+
+### Behind a corporate proxy
+
+If `npm view @modelcontextprotocol/server-github version` times out, configure npm to use your proxy:
+
+```bash
+npm config set proxy http://proxy.example.com:8080
+npm config set https-proxy http://proxy.example.com:8080
+```
+
+For TLS inspection (corporate CA), set `NODE_EXTRA_CA_CERTS` in each server's `env` block in `~/.claude/settings.json`. See [troubleshooting.md](troubleshooting.md) for details.
+
+### Conflicting server configs
+
+If a server behaves differently per project, check for duplicate keys between `~/.claude/settings.json` (user-level) and `.claude/settings.json` (project-level). Project-level entries replace user-level entries with the same name entirely. See [troubleshooting.md](troubleshooting.md) for diagnostic steps.
 
 ### GitHub rate limiting
 

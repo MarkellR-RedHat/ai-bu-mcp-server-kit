@@ -1045,18 +1045,22 @@ with open(sys.argv[1]) as f:
 
             # Show example prompts based on configured servers
             local example_shown=false
+            local has_github=false
+            local has_fetch=false
             while IFS= read -r sn; do
                 [[ -z "$sn" ]] && continue
                 case "$sn" in
                     github*)
                         echo "    \"List the open PRs in this repo\""
                         example_shown=true
+                        has_github=true
                         ;;
                     fetch*)
                         if ! $example_shown; then
                             echo "    \"Fetch https://httpbin.org/get and show me the response\""
                             example_shown=true
                         fi
+                        has_fetch=true
                         ;;
                     brave-search*)
                         echo "    \"Search the web for MCP server best practices\""
@@ -1075,6 +1079,19 @@ with open(sys.argv[1]) as f:
                 echo "    \"What MCP tools do I have available?\""
             fi
             echo ""
+
+            # Cross-tool integration hints
+            if $has_github || $has_fetch; then
+                echo -e "  ${BOLD}Test with other Claude Code tools${NC}"
+                echo ""
+                if $has_github; then
+                    echo -e "    Run ${CYAN}/briefing${NC} to exercise the GitHub MCP server end to end"
+                fi
+                if $has_fetch && $has_github; then
+                    echo -e "    Run ${CYAN}/upstream vllm${NC} to test fetch + GitHub servers together"
+                fi
+                echo ""
+            fi
         fi
 
         if [[ $warn_count -gt 0 && $fail_count -eq 0 ]]; then
